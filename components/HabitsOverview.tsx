@@ -55,41 +55,44 @@ export function HabitsOverview({ habits, onAddCompletion, recentCompletions = {}
               </View>
             </View>
 
-            {/* Center: Mini 7-Day Calendar */}
-            <View style={styles.miniCalendar}>
-              {last7Days.map((date, index) => {
-                const dayNum = date.getDate().toString();
-                const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
-                const isCompleted = hasCompletionOnDate(habit.id, date);
-                
-                return (
-                  <View key={index} style={styles.dayColumn}>
-                    <Text style={styles.dayName}>{dayName}</Text>
-                    <Text style={styles.dayNumber}>{dayNum}</Text>
-                    <View
-                      style={[
-                        styles.dayIndicator,
-                        isCompleted && { backgroundColor: habit.color }
-                      ]}
-                    />
-                  </View>
-                );
-              })}
-            </View>
+            {/* Right Section: Mini Calendar and Plus Button */}
+            <View style={styles.rightSection}>
+              {/* Mini 7-Day Calendar */}
+              <View style={styles.miniCalendar}>
+                {last7Days.map((date, index) => {
+                  const dayNum = date.getDate().toString();
+                  const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
+                  const isCompleted = hasCompletionOnDate(habit.id, date);
+                  
+                  return (
+                    <View key={index} style={styles.dayColumn}>
+                      <Text style={styles.dayName}>{dayName}</Text>
+                      <Text style={styles.dayNumber}>{dayNum}</Text>
+                      <View
+                        style={[
+                          styles.dayIndicator,
+                          isCompleted && { backgroundColor: habit.color }
+                        ]}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
 
-            {/* Right: Plus Button */}
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: habit.color }]}
-              onPress={() => onAddCompletion(habit.id)}
-              activeOpacity={0.8}
-            >
-              <IconSymbol
-                ios_icon_name="plus"
-                android_material_icon_name="add"
-                size={20}
-                color="#ffffff"
-              />
-            </TouchableOpacity>
+              {/* Plus Button */}
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: habit.color }]}
+                onPress={() => onAddCompletion(habit.id)}
+                activeOpacity={0.8}
+              >
+                <IconSymbol
+                  ios_icon_name="plus"
+                  android_material_icon_name="add"
+                  size={20}
+                  color="#ffffff"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         );
       })}
@@ -117,6 +120,7 @@ const styles = StyleSheet.create({
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
@@ -124,7 +128,8 @@ const styles = StyleSheet.create({
   },
   leftSection: {
     flex: 1,
-    minWidth: 100,
+    minWidth: 0,
+    marginRight: 12,
   },
   habitName: {
     fontSize: 16,
@@ -145,30 +150,34 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.5)',
   },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   miniCalendar: {
     flexDirection: 'row',
     gap: 4,
-    flex: 0,
   },
   dayColumn: {
     alignItems: 'center',
-    width: 28,
+    width: 24,
   },
   dayName: {
-    fontSize: 9,
+    fontSize: 8,
     color: 'rgba(255, 255, 255, 0.6)',
     marginBottom: 2,
   },
   dayNumber: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: '#ffffff',
     marginBottom: 3,
   },
   dayIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   addButton: {

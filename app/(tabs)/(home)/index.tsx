@@ -18,6 +18,7 @@ import { HabitsOverview } from '@/components/HabitsOverview';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { AlertModal } from '@/components/AlertModal';
 import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
+import { EditHabitModal } from '@/components/EditHabitModal';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
 import { Habit, HabitCompletion } from '@/types/habit';
@@ -29,15 +30,19 @@ export default function HomeScreen() {
     dashboard, 
     loading, 
     error, 
-    addCompletion, 
+    addCompletion,
+    removeCompletion,
     addPastCompletion,
-    createHabit, 
+    createHabit,
+    updateHabit,
     fetchCompletions,
     refetch 
   } = useHabits();
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedHabitForEdit, setSelectedHabitForEdit] = useState<Habit | null>(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,10 +81,22 @@ export default function HomeScreen() {
       console.error('[HomeScreen] Failed to add completion:', err);
       
       if (err.isAlreadyCompleted) {
-        showAlert('Already Completed', err.message, 'info');
+        showAlert('Info', err.message, 'info');
       } else {
         showAlert('Error', 'Failed to add completion. Please try again.', 'error');
       }
+    }
+  };
+
+  const handleRemoveCompletion = async (habitId: string) => {
+    console.log('[HomeScreen] User tapped decrement button for habit:', habitId);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await removeCompletion(habitId);
+      showAlert('Success!', 'Completion removed', 'success');
+    } catch (err: any) {
+      console.error('[HomeScreen] Failed to remove completion:', err);
+      showAlert('Error', 'Failed to remove completion. Please try again.', 'error');
     }
   };
 
@@ -118,7 +135,7 @@ export default function HomeScreen() {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
       if (err.isAlreadyCompleted) {
-        showAlert('Already Completed', err.message, 'info');
+        showAlert('Info', err.message, 'info');
       } else {
         showAlert('Error', 'Failed to add past completion', 'error');
       }
@@ -142,7 +159,25 @@ export default function HomeScreen() {
 
   const handleSettingsPress = (habit: Habit) => {
     console.log('[HomeScreen] User tapped settings for habit:', habit.id);
-    showAlert('Settings', 'Habit settings coming soon!', 'info');
+    setSelectedHabitForEdit(habit);
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateHabit = async (
+    habitId: string,
+    name: string,
+    color: string,
+    goalCount: number,
+    goalPeriodDays: number
+  ) => {
+    console.log('[HomeScreen] Updating habit:', habitId);
+    try {
+      await updateHabit(habitId, name, color, goalCount, goalPeriodDays);
+      showAlert('Success!', 'Habit updated successfully', 'success');
+    } catch (err) {
+      console.error('[HomeScreen] Failed to update habit:', err);
+      throw err;
+    }
   };
 
   const handleLogout = async () => {
@@ -334,6 +369,7 @@ export default function HomeScreen() {
                     onComplete={() => handleAddCompletion(habit.id)}
                     onCalendarPress={() => handleCalendarPress(habit)}
                     onSettingsPress={() => handleSettingsPress(habit)}
+                    onDecrement={() => handleRemoveCompletion(habit.id)}
                     recentCompletions={recentCompletions}
                     todayCompletionCount={todayCount}
                   />
@@ -348,6 +384,16 @@ export default function HomeScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onAdd={handleCreateHabit}
+      />
+
+      <EditHabitModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedHabitForEdit(null);
+        }}
+        onSave={handleUpdateHabit}
+        habit={selectedHabitForEdit}
       />
 
       {/* Profile Modal */}

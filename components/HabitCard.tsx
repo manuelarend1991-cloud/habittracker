@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Habit } from '@/types/habit';
 import { colors } from '@/styles/commonStyles';
@@ -27,10 +27,14 @@ export function HabitCard({
   todayCompletionCount = 0
 }: HabitCardProps) {
   const goalText = `Goal: ${habit.goalCount}x per ${habit.goalPeriodDays} days`;
-  const currentStreakText = `Current: ${habit.currentStreak}`;
-  const bestStreakText = `Best: ${habit.maxStreak}`;
+  const currentStreakText = `${habit.currentStreak}`;
+  const bestStreakText = `${habit.maxStreak}`;
   const todayCountText = `${todayCompletionCount}`;
   const todayGoalText = `/ ${habit.goalCount}`;
+  
+  // Calculate progress percentage for today
+  const progressPercentage = Math.min((todayCompletionCount / habit.goalCount) * 100, 100);
+  const progressPercentageText = `${Math.round(progressPercentage)}%`;
 
   return (
     <View
@@ -68,6 +72,25 @@ export function HabitCard({
       {/* Current Settings */}
       <View style={styles.settingsRow}>
         <Text style={styles.settingsText}>{goalText}</Text>
+      </View>
+
+      {/* Today's Progress Bar */}
+      <View style={styles.progressSection}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressLabel}>Today&apos;s Progress</Text>
+          <Text style={styles.progressPercentage}>{progressPercentageText}</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <View 
+            style={[
+              styles.progressBarFill, 
+              { 
+                width: `${progressPercentage}%`,
+                backgroundColor: habit.color 
+              }
+            ]} 
+          />
+        </View>
       </View>
 
       {/* Today's Counter and Calendar */}
@@ -180,6 +203,35 @@ const styles = StyleSheet.create({
   settingsText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  progressSection: {
+    marginBottom: 12,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  progressPercentage: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   counterRow: {
     flexDirection: 'row',

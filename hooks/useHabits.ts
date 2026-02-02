@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Habit, HabitCompletion, DashboardData } from '@/types/habit';
-import { authenticatedGet, authenticatedPost, authenticatedDelete } from '@/utils/api';
+import { authenticatedGet, authenticatedPost, authenticatedDelete, authenticatedPut } from '@/utils/api';
 
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -69,6 +69,27 @@ export function useHabits() {
     }
   }, [fetchDashboard]);
 
+  const removeCompletion = useCallback(async (habitId: string) => {
+    console.log('[useHabits] Removing last completion for habit:', habitId);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await authenticatedDelete<{ updatedHabit: Habit }>(
+        `/api/habits/${habitId}/complete-today`
+      );
+      console.log('[useHabits] Completion removed:', response);
+      
+      setHabits(prevHabits => 
+        prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)
+      );
+      
+      await fetchDashboard();
+      return response;
+    } catch (err: any) {
+      console.error('[useHabits] Error removing completion:', err);
+      throw err;
+    }
+  }, [fetchDashboard]);
+
   const addPastCompletion = useCallback(async (habitId: string, date: Date) => {
     console.log('[useHabits] Adding past completion for habit:', habitId, 'date:', date);
     try {
@@ -121,6 +142,28 @@ export function useHabits() {
     }
   }, [fetchDashboard]);
 
+  const updateHabit = useCallback(async (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number) => {
+    console.log('[useHabits] Updating habit:', habitId, { name, color, goalCount, goalPeriodDays });
+    try {
+      const updatedHabit = await authenticatedPut<Habit>(`/api/habits/${habitId}`, {
+        name,
+        color,
+        goalCount,
+        goalPeriodDays,
+      });
+      console.log('[useHabits] Habit updated:', updatedHabit);
+      
+      setHabits(prevHabits => 
+        prevHabits.map(h => h.id === habitId ? updatedHabit : h)
+      );
+      
+      await fetchDashboard();
+    } catch (err) {
+      console.error('[useHabits] Error updating habit:', err);
+      throw err;
+    }
+  }, [fetchDashboard]);
+
   const deleteHabit = useCallback(async (habitId: string) => {
     console.log('[useHabits] Deleting habit:', habitId);
     try {
@@ -159,8 +202,10 @@ export function useHabits() {
     loading,
     error,
     addCompletion,
+    removeCompletion,
     addPastCompletion,
     createHabit,
+    updateHabit,
     deleteHabit,
     fetchCompletions,
     refetch: fetchHabits,
