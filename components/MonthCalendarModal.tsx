@@ -82,6 +82,15 @@ export function MonthCalendarModal({
     });
   };
 
+  const isMissedCompletionOnDate = (date: Date): boolean => {
+    const dateStr = date.toISOString().split('T')[0];
+    const completion = completions.find(completion => {
+      const completionDateStr = new Date(completion.completedAt).toISOString().split('T')[0];
+      return completionDateStr === dateStr;
+    });
+    return completion?.isMissedCompletion === true;
+  };
+
   const isToday = (date: Date): boolean => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -167,6 +176,7 @@ export function MonthCalendarModal({
 
     // Now we know date is not null, safe to access properties
     const completed = hasCompletionOnDate(date);
+    const isMissed = isMissedCompletionOnDate(date);
     const today = isToday(date);
     const future = isFutureDate(date);
     const isSelected = selectedDate !== null && selectedDate.toDateString() === date.toDateString();
@@ -189,21 +199,28 @@ export function MonthCalendarModal({
         {isAdding && isSelected ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : (
-          <Text
-            style={[
-              styles.dayText,
-              completed && styles.completedDayText,
-              future && styles.futureDayText,
-            ]}
-          >
-            {dayNumber}
-          </Text>
+          <View style={styles.dayCellContent}>
+            <Text
+              style={[
+                styles.dayText,
+                completed && styles.completedDayText,
+                future && styles.futureDayText,
+              ]}
+            >
+              {dayNumber}
+            </Text>
+            {isMissed && (
+              <View style={styles.plasterBadge}>
+                <Text style={styles.plasterEmoji}>🩹</Text>
+              </View>
+            )}
+          </View>
         )}
       </TouchableOpacity>
     );
   };
 
-  const confirmMessageText = 'Are you sure you want to add a missed completion?\n\n💰 Cost: 10 points (fixed)\n\n⚠️ Warning: This will reset your point streak worthiness. Your next completion will earn only 1 point, regardless of your current streak length.\n\n✅ The streak counter itself will continue counting.\n\nNote: If you don\'t have enough points, this action will be blocked.';
+  const confirmMessageText = 'Are you sure you want to add a missed completion?\n\n💰 Cost: 10 points (fixed)\n\n⚠️ Warning: This will reset your point streak worthiness. Your next completion will earn only 1 point, regardless of your current streak length.\n\n✅ The streak counter itself will continue counting.\n\n🩹 Visual Indicator: This completion will be marked with a plaster badge in the calendar to distinguish it from regular completions.\n\nNote: If you don\'t have enough points, this action will be blocked.';
 
   return (
     <Modal
@@ -374,6 +391,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     borderRadius: 8,
     backgroundColor: colors.backgroundAlt,
+    position: 'relative',
+  },
+  dayCellContent: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  plasterBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plasterEmoji: {
+    fontSize: 10,
   },
   todayCell: {
     borderWidth: 2,

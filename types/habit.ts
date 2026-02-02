@@ -9,6 +9,7 @@ export interface Habit {
   currentStreak: number;
   maxStreak: number;
   totalPoints: number;
+  pointStreakReset?: boolean;
   createdAt: string;
 }
 
@@ -18,6 +19,7 @@ export interface HabitCompletion {
   completedAt: string;
   points: number;
   createdAt: string;
+  isMissedCompletion?: boolean;
 }
 
 export interface Achievement {
@@ -39,7 +41,14 @@ export interface DashboardData {
     icon: string;
     currentStreak: number;
     maxStreak: number;
-    recentCompletions: HabitCompletion[];
+    totalPoints: number;
+    pointStreakReset?: boolean;
+    recentCompletions: Array<{
+      id: string;
+      completedAt: string;
+      points: number;
+      isMissedCompletion?: boolean;
+    }>;
   }>;
   totalPoints: number;
   recentAchievements: Achievement[];

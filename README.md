@@ -33,6 +33,7 @@ You can retroactively add missed completions, but there's a cost:
 - **Continues your streak counter** (doesn't break the streak)
 - **⚠️ Resets point worthiness**: Your next completion will earn only 1 point, regardless of your current streak length
 - **❌ Blocked if insufficient points**: You must have at least 10 points to add a missed completion
+- **🩹 Visual indicator**: Missed completions are marked with a small plaster badge in both the calendar view and the 7-day mini calendar
 
 **Important**: Adding a missed completion only continues the streak counter, but never continues the worthiness of the points-streak. This prevents gaming the system while still allowing you to maintain your streak.
 
@@ -47,10 +48,13 @@ You can retroactively add missed completions, but there's a cost:
 - **Multiple Habits**: Track unlimited habits with custom colors and goals
 - **Streak Tracking**: Monitor current and best streaks for each habit
 - **Daily Goals**: Set completion targets per time period
-- **Calendar View**: Visualize your completion history
+- **Calendar View**: Visualize your completion history with missed completion indicators (🩹)
+- **7-Day Mini Calendar**: Quick overview of the last 7 days with visual indicators
 - **Achievements**: Unlock badges for milestone streaks (7, 14, 30, 100 days)
 - **Points Dashboard**: See your total points across all habits
 - **Gamification**: Earn more points for longer streaks
+- **Next Worth Display**: See how many points your next completion will be worth
+- **Delete Habits**: Remove habits you no longer want to track
 
 ## 🧪 Testing the Point System
 
@@ -72,14 +76,18 @@ You can retroactively add missed completions, but there's a cost:
 ### Test Scenario 3: Adding Missed Completion (Success)
 
 1. Build a streak and earn at least 10 points
-2. Open the calendar view for a habit
+2. Open the calendar view for a habit (tap the calendar icon)
 3. Tap on a past date that's missing a completion
-4. Confirm the action
+4. Confirm the action in the modal
 5. Verify:
    - 10 points deducted from total
    - Streak counter continues
    - Warning shown about point worthiness reset
    - Next completion earns only 1 point
+   - **🩹 Plaster badge appears** on the missed completion in both:
+     - The month calendar view
+     - The 7-day mini calendar in the overview
+   - **⚠️ Warning icon appears** next to "Next Worth" on the habit card
 
 ### Test Scenario 4: Adding Missed Completion (Insufficient Points)
 
@@ -89,13 +97,17 @@ You can retroactively add missed completions, but there's a cost:
 4. Should see error: "Not enough points for this!"
 5. Action should be blocked
 
-### Test Scenario 5: Point Worthiness Reset
+### Test Scenario 5: Point Worthiness Reset & Visual Indicators
 
 1. Build a 5-day streak (1+2+3+4+5 = 15 points)
 2. Add a missed completion for yesterday (-10 points, 5 points remaining)
-3. Complete the habit today → Should earn **1 point** (not 6!)
-4. Complete it tomorrow → Should earn **2 points** (new streak building)
-5. Verify the point streak restarted but streak counter continued
+3. Verify visual indicators:
+   - **🩹 Plaster badge** appears on the missed completion date
+   - **⚠️ Warning icon** appears next to "Next Worth: 1 pt" on the habit card
+4. Complete the habit today → Should earn **1 point** (not 6!)
+5. Verify the warning icon disappears after completion
+6. Complete it tomorrow → Should earn **2 points** (new streak building)
+7. Verify the point streak restarted but streak counter continued
 
 ## 🔐 Authentication
 
@@ -191,10 +203,12 @@ All API calls and point calculations are logged to the console with the `[API]` 
 
 ### Habit Management
 - [ ] Create a new habit
-- [ ] Edit habit name, color, and goals
-- [ ] Delete a habit
+- [ ] Edit habit name, color, icon, and goals
+- [ ] Delete a habit (with confirmation modal)
 - [ ] View habit list
 - [ ] Pull to refresh updates data
+- [ ] Habit card shows "Next Worth" with current point value
+- [ ] Settings icon (⚙️) opens edit modal
 
 ### Point System - Regular Completions
 - [ ] First completion earns 1 point
@@ -211,7 +225,11 @@ All API calls and point calculations are logged to the console with the `[API]` 
 - [ ] Confirmation modal shows 10 point cost warning
 - [ ] Adding missed completion deducts 10 points
 - [ ] Adding missed completion shows success message
+- [ ] **🩹 Plaster badge appears on missed completion in calendar**
+- [ ] **🩹 Plaster badge appears on missed completion in 7-day mini calendar**
+- [ ] **⚠️ Warning icon appears next to "Next Worth" on habit card**
 - [ ] Next completion after missed earns only 1 point
+- [ ] Warning icon disappears after completing a habit with reset flag
 - [ ] Streak counter continues (doesn't reset)
 - [ ] Cannot add missed completion with < 10 points
 - [ ] Error message shows when insufficient points
@@ -253,7 +271,7 @@ All API calls and point calculations are logged to the console with the `[API]` 
 
 ## 🔄 Recent Updates
 
-### Point System Overhaul (Latest)
+### Point System Overhaul & Visual Indicators (Latest)
 - ✅ Implemented new point calculation: points = streak day (1, 2, 3, ...)
 - ✅ Fixed cost of 10 points for missed completions
 - ✅ Point worthiness reset after missed completions
@@ -263,5 +281,10 @@ All API calls and point calculations are logged to the console with the `[API]` 
 - ✅ Enhanced UI with points info modal
 - ✅ Improved error messages and user feedback
 - ✅ Added streak indicators to points notifications
+- ✅ **🩹 Plaster badge visual indicator for missed completions**
+- ✅ **⚠️ Warning icon when point streak is reset**
+- ✅ **"Next Worth" display on habit cards**
+- ✅ **Delete habit functionality with confirmation**
+- ✅ **Fixed point system exploit** (undoing/redoing completions now preserves pointStreakReset flag)
 
 Made with 💙 for creativity.

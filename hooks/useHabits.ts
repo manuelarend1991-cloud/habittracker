@@ -31,6 +31,15 @@ export function useHabits() {
     try {
       const data = await authenticatedGet<DashboardData>('/api/dashboard');
       console.log('[useHabits] Fetched dashboard:', data);
+      
+      // Log missed completions for debugging
+      data.habits.forEach(habit => {
+        const missedCompletions = habit.recentCompletions.filter(c => c.isMissedCompletion);
+        if (missedCompletions.length > 0) {
+          console.log(`[useHabits] Habit "${habit.name}" has ${missedCompletions.length} missed completions`);
+        }
+      });
+      
       setDashboard(data);
     } catch (err) {
       console.error('[useHabits] Error fetching dashboard:', err);
@@ -51,6 +60,8 @@ export function useHabits() {
         { completedAt }
       );
       console.log('[useHabits] Completion added:', response);
+      console.log('[useHabits] Points earned:', response.pointsEarned);
+      console.log('[useHabits] Updated habit pointStreakReset:', response.updatedHabit.pointStreakReset);
       
       setHabits(prevHabits => 
         prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)
@@ -82,6 +93,8 @@ export function useHabits() {
         `/api/habits/${habitId}/complete-today`
       );
       console.log('[useHabits] Completion removed:', response);
+      console.log('[useHabits] Updated habit pointStreakReset after removal:', response.updatedHabit.pointStreakReset);
+      console.log('[useHabits] Updated habit totalPoints after removal:', response.updatedHabit.totalPoints);
       
       setHabits(prevHabits => 
         prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)
@@ -110,6 +123,9 @@ export function useHabits() {
         { completedAt }
       );
       console.log('[useHabits] Past completion added:', response);
+      console.log('[useHabits] Points cost:', response.pointsCost);
+      console.log('[useHabits] Updated habit pointStreakReset:', response.updatedHabit.pointStreakReset);
+      console.log('[useHabits] Completion isMissedCompletion:', response.completion.isMissedCompletion);
       
       setHabits(prevHabits => 
         prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)

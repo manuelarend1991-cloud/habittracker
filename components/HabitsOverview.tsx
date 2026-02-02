@@ -8,7 +8,7 @@ import { IconSymbol } from './IconSymbol';
 interface HabitsOverviewProps {
   habits: Habit[];
   onAddCompletion: (habitId: string) => void;
-  recentCompletions?: Record<string, string[]>;
+  recentCompletions?: Record<string, Array<{ completedAt: string; isMissedCompletion?: boolean }>>;
   todayCompletionCounts?: Record<string, number>;
 }
 
@@ -33,10 +33,21 @@ export function HabitsOverview({
   const hasCompletionOnDate = (habitId: string, date: Date): boolean => {
     const habitCompletionDates = recentCompletions[habitId] || [];
     const dateStr = date.toISOString().split('T')[0];
-    return habitCompletionDates.some(completionDate => {
-      const completionDateStr = new Date(completionDate).toISOString().split('T')[0];
+    return habitCompletionDates.some(completion => {
+      const completionDateStr = new Date(completion.completedAt).toISOString().split('T')[0];
       return completionDateStr === dateStr;
     });
+  };
+
+  // Check if a completion on a specific date is a missed completion
+  const isMissedCompletionOnDate = (habitId: string, date: Date): boolean => {
+    const habitCompletionDates = recentCompletions[habitId] || [];
+    const dateStr = date.toISOString().split('T')[0];
+    const completion = habitCompletionDates.find(completion => {
+      const completionDateStr = new Date(completion.completedAt).toISOString().split('T')[0];
+      return completionDateStr === dateStr;
+    });
+    return completion?.isMissedCompletion === true;
   };
 
   return (
@@ -79,17 +90,25 @@ export function HabitsOverview({
                   const dayNum = date.getDate().toString();
                   const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
                   const isCompleted = hasCompletionOnDate(habit.id, date);
+                  const isMissed = isMissedCompletionOnDate(habit.id, date);
                   
                   return (
                     <View key={index} style={styles.dayColumn}>
                       <Text style={styles.dayName}>{dayName}</Text>
                       <Text style={styles.dayNumber}>{dayNum}</Text>
-                      <View
-                        style={[
-                          styles.dayIndicator,
-                          isCompleted && { backgroundColor: habit.color }
-                        ]}
-                      />
+                      <View style={styles.dayIndicatorContainer}>
+                        <View
+                          style={[
+                            styles.dayIndicator,
+                            isCompleted && { backgroundColor: habit.color }
+                          ]}
+                        />
+                        {isMissed && (
+                          <View style={styles.miniPlasterBadge}>
+                            <Text style={styles.miniPlasterEmoji}>🩹</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -210,11 +229,28 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 3,
   },
+  dayIndicatorContainer: {
+    position: 'relative',
+    width: 16,
+    height: 16,
+  },
   dayIndicator: {
     width: 16,
     height: 16,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  miniPlasterBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 10,
+    height: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniPlasterEmoji: {
+    fontSize: 8,
   },
   addButton: {
     width: 36,

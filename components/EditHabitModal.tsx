@@ -15,15 +15,17 @@ import { colors, habitColors } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
 import { Habit } from '@/types/habit';
 import { DEFAULT_HABIT_ICONS } from '@/constants/habitIcons';
+import { ConfirmModal } from './AddHabitModal';
 
 interface EditHabitModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => Promise<void>;
+  onDelete?: (habitId: string) => Promise<void>;
   habit: Habit | null;
 }
 
-export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitModalProps) {
+export function EditHabitModal({ visible, onClose, onSave, onDelete, habit }: EditHabitModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(habitColors[0]);
   const [selectedIcon, setSelectedIcon] = useState(DEFAULT_HABIT_ICONS[0].name);
@@ -31,6 +33,7 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
   const [goalPeriodDays, setGoalPeriodDays] = useState('7');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   // Pre-fill form when habit changes
   useEffect(() => {
@@ -71,6 +74,26 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
     } catch (err) {
       console.error('[EditHabitModal] Error updating habit:', err);
       setError(err instanceof Error ? err.message : 'Failed to update habit');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    console.log('[EditHabitModal] User confirmed delete habit');
+    if (!habit || !onDelete) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setDeleteConfirmVisible(false);
+      await onDelete(habit.id);
+      onClose();
+    } catch (err) {
+      console.error('[EditHabitModal] Error deleting habit:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete habit');
     } finally {
       setLoading(false);
     }
@@ -216,9 +239,39 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
                 {loading ? 'Saving...' : 'Save Changes'}
               </Text>
             </TouchableOpacity>
+
+            {onDelete && (
+              <TouchableOpacity
+                style={[styles.deleteButton, loading && styles.deleteButtonDisabled]}
+                onPress={() => {
+                  console.log('[EditHabitModal] User tapped Delete Habit button');
+                  setDeleteConfirmVisible(true);
+                }}
+                disabled={loading}
+              >
+                <IconSymbol
+                  ios_icon_name="trash"
+                  android_material_icon_name="delete"
+                  size={20}
+                  color="#ffffff"
+                />
+                <Text style={styles.deleteButtonText}>Delete Habit</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Delete Habit"
+        message="Are you sure you want to delete this habit? This action cannot be undone. All completions and progress will be permanently lost."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirmVisible(false)}
+        destructive={true}
+      />
     </Modal>
   );
 }
@@ -361,6 +414,24 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',

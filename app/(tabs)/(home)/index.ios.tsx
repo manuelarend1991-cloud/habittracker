@@ -36,6 +36,7 @@ export default function HomeScreen() {
     addPastCompletion,
     createHabit,
     updateHabit,
+    deleteHabit,
     fetchCompletions,
     refetch 
   } = useHabits();
@@ -249,6 +250,18 @@ export default function HomeScreen() {
     }
   };
 
+  const handleDeleteHabit = async (habitId: string) => {
+    console.log('[HomeScreen] Deleting habit:', habitId);
+    try {
+      await deleteHabit(habitId);
+      showAlert('Habit Deleted', 'The habit has been permanently deleted', 'success');
+    } catch (err) {
+      console.error('[HomeScreen] Failed to delete habit:', err);
+      showAlert('Error', 'Failed to delete habit. Please try again.', 'error');
+      throw err;
+    }
+  };
+
   const handleLogout = async () => {
     console.log('[HomeScreen] User confirmed logout');
     setLogoutConfirmVisible(false);
@@ -261,11 +274,11 @@ export default function HomeScreen() {
     }
   };
 
-  const recentCompletionsMap: Record<string, string[]> = {};
+  const recentCompletionsMap: Record<string, Array<{ completedAt: string; isMissedCompletion?: boolean }>> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   if (dashboard) {
     dashboard.habits.forEach(h => {
-      recentCompletionsMap[h.id] = h.recentCompletions.map(c => c.completedAt);
+      recentCompletionsMap[h.id] = h.recentCompletions;
       todayCompletionCountsMap[h.id] = getTodayCompletionCount(h.id);
     });
   }
@@ -432,6 +445,7 @@ export default function HomeScreen() {
                 const dashboardHabit = dashboard?.habits.find(h => h.id === habit.id);
                 const recentCompletions = dashboardHabit?.recentCompletions.map(c => c.completedAt) || [];
                 const todayCount = getTodayCompletionCount(habit.id);
+                const pointStreakReset = dashboardHabit?.pointStreakReset || false;
                 
                 return (
                   <HabitCard
@@ -443,6 +457,7 @@ export default function HomeScreen() {
                     onDecrement={() => handleRemoveCompletion(habit.id)}
                     recentCompletions={recentCompletions}
                     todayCompletionCount={todayCount}
+                    pointStreakReset={pointStreakReset}
                   />
                 );
               })}
@@ -464,6 +479,7 @@ export default function HomeScreen() {
           setSelectedHabitForEdit(null);
         }}
         onSave={handleUpdateHabit}
+        onDelete={handleDeleteHabit}
         habit={selectedHabitForEdit}
       />
 

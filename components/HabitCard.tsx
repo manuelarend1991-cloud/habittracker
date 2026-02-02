@@ -14,6 +14,7 @@ interface HabitCardProps {
   onPress?: () => void;
   recentCompletions?: string[];
   todayCompletionCount?: number;
+  pointStreakReset?: boolean;
 }
 
 export function HabitCard({ 
@@ -24,7 +25,8 @@ export function HabitCard({
   onDecrement,
   onPress, 
   recentCompletions = [],
-  todayCompletionCount = 0
+  todayCompletionCount = 0,
+  pointStreakReset = false
 }: HabitCardProps) {
   const goalText = `Goal: ${habit.goalCount}x per ${habit.goalPeriodDays} days`;
   const currentStreakText = `${habit.currentStreak}`;
@@ -38,6 +40,12 @@ export function HabitCard({
   
   // Check if daily goal is reached
   const isDailyGoalReached = todayCompletionCount >= habit.goalCount;
+  
+  // Calculate next completion worth
+  // If pointStreakReset is true, next completion is worth 1 point
+  // Otherwise, it's worth currentStreak + 1 (since we're continuing the streak)
+  const nextCompletionWorth = pointStreakReset ? 1 : habit.currentStreak + 1;
+  const nextCompletionText = `Next: ${nextCompletionWorth} pt${nextCompletionWorth !== 1 ? 's' : ''}`;
 
   return (
     <View
@@ -77,6 +85,15 @@ export function HabitCard({
         <View style={styles.streakItem}>
           <Text style={styles.streakLabel}>Best Streak</Text>
           <Text style={[styles.streakValue, { color: habit.color }]}>{bestStreakText}</Text>
+        </View>
+        <View style={styles.streakItem}>
+          <Text style={styles.streakLabel}>Next Worth</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[styles.streakValue, { color: habit.color }]}>{nextCompletionText}</Text>
+            {pointStreakReset && (
+              <Text style={{ fontSize: 14 }}>⚠️</Text>
+            )}
+          </View>
         </View>
       </View>
 
