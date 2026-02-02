@@ -37,7 +37,7 @@ export function registerHabitRoutes(app: App) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    const body = request.body as { name: string; color: string; goalCount: number; goalPeriodDays: number };
+    const body = request.body as { name: string; color: string; goalCount: number; goalPeriodDays: number; icon?: string };
 
     app.logger.info({ userId: session.user.id, body }, 'Creating habit');
 
@@ -46,6 +46,7 @@ export function registerHabitRoutes(app: App) {
         userId: session.user.id,
         name: body.name,
         color: body.color,
+        icon: body.icon || 'star',
         goalCount: body.goalCount,
         goalPeriodDays: body.goalPeriodDays,
         currentStreak: 0,
@@ -70,7 +71,7 @@ export function registerHabitRoutes(app: App) {
     if (!session) return;
 
     const { id } = request.params as { id: string };
-    const body = request.body as { name: string; color: string; goalCount: number; goalPeriodDays: number };
+    const body = request.body as { name?: string; color?: string; goalCount?: number; goalPeriodDays?: number; icon?: string };
 
     app.logger.info({ userId: session.user.id, habitId: id, body }, 'Updating habit');
 
@@ -100,6 +101,7 @@ export function registerHabitRoutes(app: App) {
         .set({
           name: body.name,
           color: body.color,
+          icon: body.icon !== undefined ? body.icon : habit.icon,
           goalCount: body.goalCount,
           goalPeriodDays: body.goalPeriodDays,
         })

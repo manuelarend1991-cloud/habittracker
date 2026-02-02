@@ -8,6 +8,7 @@ export const habits = pgTable('habits', {
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   color: text('color').notNull(),
+  icon: text('icon').default('star').notNull(),
   goalCount: integer('goal_count').notNull(),
   goalPeriodDays: integer('goal_period_days').notNull(),
   currentStreak: integer('current_streak').default(0).notNull(),
