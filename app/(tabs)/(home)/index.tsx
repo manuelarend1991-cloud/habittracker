@@ -353,6 +353,15 @@ export default function HomeScreen() {
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
+        <HabitsOverview
+          habits={habits}
+          onAddCompletion={handleAddCompletion}
+          recentCompletions={recentCompletionsMap}
+          todayCompletionCounts={todayCompletionCounts}
+          nextCompletionPoints={nextCompletionPoints}
+          goalCounts={goalCounts}
+        />
+
         <View style={styles.pointsCard}>
           <View style={styles.pointsHeader}>
             <Text style={styles.pointsTitle}>Total Points</Text>
@@ -394,15 +403,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        <HabitsOverview
-          habits={habits}
-          onAddCompletion={handleAddCompletion}
-          recentCompletions={recentCompletionsMap}
-          todayCompletionCounts={todayCompletionCounts}
-          nextCompletionPoints={nextCompletionPoints}
-          goalCounts={goalCounts}
-        />
 
         {habits.map((habit) => {
           const todayCount = getTodayCompletionCount(habit.id);
