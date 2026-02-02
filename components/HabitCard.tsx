@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Habit } from '@/types/habit';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
@@ -9,112 +9,121 @@ interface HabitCardProps {
   habit: Habit;
   onComplete: () => void;
   onCalendarPress: () => void;
+  onSettingsPress?: () => void;
+  onDecrement?: () => void;
   onPress?: () => void;
   recentCompletions?: string[];
+  todayCompletionCount?: number;
 }
 
 export function HabitCard({ 
   habit, 
   onComplete, 
   onCalendarPress,
+  onSettingsPress,
+  onDecrement,
   onPress, 
-  recentCompletions = [] 
+  recentCompletions = [],
+  todayCompletionCount = 0
 }: HabitCardProps) {
-  const goalText = `${habit.goalCount}x per ${habit.goalPeriodDays} days`;
-  const currentStreakText = `${habit.currentStreak}`;
-  const maxStreakText = `${habit.maxStreak}`;
-
-  // Generate last 7 days
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    return date;
-  });
-
-  // Check if a date has completions
-  const hasCompletionOnDate = (date: Date): boolean => {
-    const dateStr = date.toISOString().split('T')[0];
-    return recentCompletions.some(completionDate => {
-      const completionDateStr = new Date(completionDate).toISOString().split('T')[0];
-      return completionDateStr === dateStr;
-    });
-  };
+  const goalText = `Goal: ${habit.goalCount}x per ${habit.goalPeriodDays} days`;
+  const currentStreakText = `Current: ${habit.currentStreak}`;
+  const bestStreakText = `Best: ${habit.maxStreak}`;
+  const todayCountText = `${todayCompletionCount}`;
+  const todayGoalText = `/ ${habit.goalCount}`;
 
   return (
-    <TouchableOpacity
+    <View
       style={[styles.card, { borderLeftColor: habit.color, borderLeftWidth: 4 }]}
-      onPress={onPress}
-      activeOpacity={0.7}
     >
+      {/* Header: Habit Name and Settings Icon */}
       <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.habitName}>{habit.name}</Text>
-          <Text style={styles.goalText}>{goalText}</Text>
-        </View>
+        <Text style={styles.habitName}>{habit.name}</Text>
         <TouchableOpacity
-          style={styles.calendarButton}
-          onPress={onCalendarPress}
+          style={styles.iconButton}
+          onPress={onSettingsPress}
           activeOpacity={0.7}
         >
           <IconSymbol
-            ios_icon_name="calendar"
-            android_material_icon_name="calendar-today"
-            size={24}
-            color={habit.color}
+            ios_icon_name="gear"
+            android_material_icon_name="settings"
+            size={22}
+            color={colors.textSecondary}
           />
         </TouchableOpacity>
       </View>
 
-      {/* Streak Stats Row */}
+      {/* Streak Stats */}
       <View style={styles.streakRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Current</Text>
-          <Text style={[styles.statValue, { color: habit.color }]}>{currentStreakText}</Text>
+        <View style={styles.streakItem}>
+          <Text style={styles.streakLabel}>Current Streak</Text>
+          <Text style={[styles.streakValue, { color: habit.color }]}>{currentStreakText}</Text>
         </View>
-
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Best</Text>
-          <Text style={[styles.statValue, { color: habit.color }]}>{maxStreakText}</Text>
+        <View style={styles.streakItem}>
+          <Text style={styles.streakLabel}>Best Streak</Text>
+          <Text style={[styles.streakValue, { color: habit.color }]}>{bestStreakText}</Text>
         </View>
       </View>
 
-      {/* 7-Day Mini Calendar and Add Button Row */}
-      <View style={styles.calendarRow}>
-        <View style={styles.miniCalendar}>
-          {last7Days.map((date, index) => {
-            const dayNum = date.getDate().toString();
-            const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
-            const isCompleted = hasCompletionOnDate(date);
-            
-            return (
-              <View key={index} style={styles.dayBox}>
-                <Text style={styles.dayNumber}>{dayNum}</Text>
-                <View
-                  style={[
-                    styles.dayIndicator,
-                    isCompleted && { backgroundColor: habit.color }
-                  ]}
-                />
-                <Text style={styles.dayName}>{dayName}</Text>
-              </View>
-            );
-          })}
+      {/* Current Settings */}
+      <View style={styles.settingsRow}>
+        <Text style={styles.settingsText}>{goalText}</Text>
+      </View>
+
+      {/* Today's Counter and Calendar */}
+      <View style={styles.counterRow}>
+        <View style={styles.counterSection}>
+          <Text style={styles.counterLabel}>Today</Text>
+          <View style={styles.counterDisplay}>
+            <Text style={[styles.counterValue, { color: habit.color }]}>{todayCountText}</Text>
+            <Text style={styles.counterGoal}>{todayGoalText}</Text>
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: habit.color }]}
-          onPress={onComplete}
-          activeOpacity={0.8}
-        >
-          <IconSymbol
-            ios_icon_name="plus"
-            android_material_icon_name="add"
-            size={24}
-            color="#ffffff"
-          />
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.calendarButton}
+            onPress={onCalendarPress}
+            activeOpacity={0.7}
+          >
+            <IconSymbol
+              ios_icon_name="calendar"
+              android_material_icon_name="calendar-today"
+              size={24}
+              color={habit.color}
+            />
+          </TouchableOpacity>
+
+          {onDecrement && todayCompletionCount > 0 && (
+            <TouchableOpacity
+              style={[styles.decrementButton, { borderColor: habit.color }]}
+              onPress={onDecrement}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="minus"
+                android_material_icon_name="remove"
+                size={20}
+                color={habit.color}
+              />
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.incrementButton, { backgroundColor: habit.color }]}
+            onPress={onComplete}
+            activeOpacity={0.8}
+          >
+            <IconSymbol
+              ios_icon_name="plus"
+              android_material_icon_name="add"
+              size={24}
+              color="#ffffff"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -131,79 +140,93 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  titleContainer: {
-    flex: 1,
+    marginBottom: 12,
   },
   habitName: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    flex: 1,
   },
-  goalText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  calendarButton: {
+  iconButton: {
     padding: 4,
   },
   streakRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 24,
+    gap: 20,
     marginBottom: 12,
   },
-  statItem: {
-    alignItems: 'center',
-    minWidth: 60,
+  streakItem: {
+    flex: 1,
   },
-  statLabel: {
+  streakLabel: {
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
+  streakValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  calendarRow: {
+  settingsRow: {
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+  },
+  settingsText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  counterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  miniCalendar: {
+  counterSection: {
+    flex: 1,
+  },
+  counterLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  counterDisplay: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     gap: 4,
-    flex: 1,
   },
-  dayBox: {
-    alignItems: 'center',
-    flex: 1,
-    maxWidth: 32,
+  counterValue: {
+    fontSize: 28,
+    fontWeight: '700',
   },
-  dayNumber: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  dayIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-    marginBottom: 2,
-  },
-  dayName: {
-    fontSize: 9,
+  counterGoal: {
+    fontSize: 16,
     color: colors.textSecondary,
   },
-  addButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarButton: {
+    padding: 8,
+  },
+  decrementButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  incrementButton: {
     width: 44,
     height: 44,
     borderRadius: 22,

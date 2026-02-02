@@ -41,7 +41,6 @@ export default function HomeScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
@@ -141,6 +140,11 @@ export default function HomeScreen() {
     }
   };
 
+  const handleSettingsPress = (habit: Habit) => {
+    console.log('[HomeScreen] User tapped settings for habit:', habit.id);
+    showAlert('Settings', 'Habit settings coming soon!', 'info');
+  };
+
   const handleLogout = async () => {
     console.log('[HomeScreen] User confirmed logout');
     setLogoutConfirmVisible(false);
@@ -151,6 +155,30 @@ export default function HomeScreen() {
       console.error('[HomeScreen] Logout failed:', err);
       showAlert('Error', 'Failed to logout. Please try again.', 'error');
     }
+  };
+
+  // Build recent completions map for HabitsOverview
+  const recentCompletionsMap: Record<string, string[]> = {};
+  if (dashboard) {
+    dashboard.habits.forEach(h => {
+      recentCompletionsMap[h.id] = h.recentCompletions.map(c => c.completedAt);
+    });
+  }
+
+  // Calculate today's completion count for each habit
+  const getTodayCompletionCount = (habitId: string): number => {
+    const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
+    if (!dashboardHabit) {
+      return 0;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const todayCompletions = dashboardHabit.recentCompletions.filter(c => {
+      const completionDate = new Date(c.completedAt).toISOString().split('T')[0];
+      return completionDate === today;
+    });
+
+    return todayCompletions.length;
   };
 
   const totalPointsText = dashboard ? `${dashboard.totalPoints}` : '0';
@@ -218,7 +246,11 @@ export default function HomeScreen() {
         )}
 
         {/* Habits Overview - Fixed at top */}
-        <HabitsOverview habits={habits} />
+        <HabitsOverview 
+          habits={habits} 
+          onAddCompletion={handleAddCompletion}
+          recentCompletions={recentCompletionsMap}
+        />
 
         {/* Points & Badges Summary */}
         <View style={styles.summaryCard}>
@@ -249,6 +281,24 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Add New Habit Box */}
+        <TouchableOpacity
+          style={styles.addHabitBox}
+          onPress={() => {
+            console.log('[HomeScreen] User tapped Add New Habit box');
+            setModalVisible(true);
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="plus.circle.fill"
+            android_material_icon_name="add-circle"
+            size={32}
+            color={colors.primary}
+          />
+          <Text style={styles.addHabitText}>Add New Habit</Text>
+        </TouchableOpacity>
+
         {/* Habits List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Habits</Text>
@@ -275,6 +325,7 @@ export default function HomeScreen() {
               {habits.map((habit) => {
                 const dashboardHabit = dashboard?.habits.find(h => h.id === habit.id);
                 const recentCompletions = dashboardHabit?.recentCompletions.map(c => c.completedAt) || [];
+                const todayCount = getTodayCompletionCount(habit.id);
                 
                 return (
                   <HabitCard
@@ -282,7 +333,9 @@ export default function HomeScreen() {
                     habit={habit}
                     onComplete={() => handleAddCompletion(habit.id)}
                     onCalendarPress={() => handleCalendarPress(habit)}
+                    onSettingsPress={() => handleSettingsPress(habit)}
                     recentCompletions={recentCompletions}
+                    todayCompletionCount={todayCount}
                   />
                 );
               })}
@@ -427,6 +480,24 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: colors.border,
+  },
+  addHabitBox: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  addHabitText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
   section: {
     marginBottom: 24,
