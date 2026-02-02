@@ -352,6 +352,10 @@ export function registerCompletionRoutes(app: App) {
         }
       }
 
+      // Deduct 10 points for adding a past completion
+      const PAST_COMPLETION_COST = 10;
+      totalPoints -= PAST_COMPLETION_COST;
+
       // Update habit with recalculated streaks and points
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
@@ -366,11 +370,15 @@ export function registerCompletionRoutes(app: App) {
       await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, points, streak: currentStreak },
-        'Past habit completion recorded and streaks recalculated'
+        { userId: session.user.id, habitId, completionId: completion.id, points, streak: currentStreak, totalPoints },
+        'Past habit completion recorded with 10 point deduction'
       );
 
-      return { completion, updatedHabit };
+      return {
+        completion,
+        updatedHabit,
+        message: 'Past completion added. 10 points deducted.'
+      };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record past completion');
       throw error;
