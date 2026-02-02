@@ -203,20 +203,21 @@ export function MonthCalendarModal({
           <ScrollView style={styles.calendarScroll}>
             <View style={styles.calendarGrid}>
               {calendarDays.map((date, index) => {
-                if (!date) {
+                // Handle empty cells (null dates) - MUST CHECK FIRST
+                if (date === null) {
                   return <View key={`empty-${index}`} style={styles.dayCell} />;
                 }
 
+                // Now we know date is not null, safe to access properties
                 const completed = hasCompletionOnDate(date);
                 const today = isToday(date);
                 const future = isFutureDate(date);
-                const isSelected = selectedDate?.toDateString() === date.toDateString();
-
+                const isSelected = selectedDate !== null && selectedDate.toDateString() === date.toDateString();
                 const dayNumber = date.getDate().toString();
 
                 return (
                   <TouchableOpacity
-                    key={index}
+                    key={`day-${index}`}
                     style={[
                       styles.dayCell,
                       completed && { backgroundColor: habit.color },
