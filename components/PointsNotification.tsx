@@ -64,6 +64,9 @@ export function PointsNotification({ points, visible, onHide }: PointsNotificati
 
   const pointsText = `+${points}`;
   const labelText = points === 1 ? 'point' : 'points';
+  
+  // Add streak indicator for points > 1
+  const streakText = points > 1 ? ` (Day ${points} streak!)` : '';
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
@@ -76,7 +79,7 @@ export function PointsNotification({ points, visible, onHide }: PointsNotificati
         />
         <View style={styles.textContainer}>
           <Text style={styles.pointsText}>{pointsText}</Text>
-          <Text style={styles.labelText}>{labelText}</Text>
+          <Text style={styles.labelText}>{labelText}{streakText}</Text>
         </View>
       </View>
     </Animated.View>

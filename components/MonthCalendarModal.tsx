@@ -203,7 +203,7 @@ export function MonthCalendarModal({
     );
   };
 
-  const confirmMessageText = 'Are you sure you want to add a missed completion? This will cost 1.5x the points you would have earned at that streak level, making it more expensive than completing on time.';
+  const confirmMessageText = 'Are you sure you want to add a missed completion?\n\n💰 Cost: 10 points (fixed)\n\n⚠️ Warning: This will reset your point streak worthiness. Your next completion will earn only 1 point, regardless of your current streak length.\n\n✅ The streak counter itself will continue counting.\n\nNote: If you don\'t have enough points, this action will be blocked.';
 
   return (
     <Modal

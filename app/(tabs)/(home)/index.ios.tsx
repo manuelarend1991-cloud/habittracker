@@ -103,9 +103,21 @@ export default function HomeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const response = await addCompletion(habitId);
       
-      // Show points notification
-      if (response && response.completion && response.completion.points) {
-        showPointsNotification(response.completion.points);
+      // Show points notification - check multiple sources for points earned
+      let pointsToShow = 0;
+      if (response) {
+        // First check if pointsEarned is in the response
+        if (response.pointsEarned !== undefined) {
+          pointsToShow = response.pointsEarned;
+        } 
+        // Fallback to completion.points
+        else if (response.completion && response.completion.points !== undefined) {
+          pointsToShow = response.completion.points;
+        }
+        
+        // Always show notification, even for 1 point
+        console.log('[HomeScreen] Showing points notification:', pointsToShow);
+        showPointsNotification(pointsToShow);
       }
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add completion:', err);
@@ -160,17 +172,23 @@ export default function HomeScreen() {
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      // Extract cost from response message or use default
-      let costMessage = 'Points deducted.';
-      if (response && typeof response === 'object' && 'message' in response) {
-        costMessage = (response as any).message || costMessage;
+      // Build a detailed message about the cost
+      let costMessage = '10 points deducted. Your next completion will earn 1 point (streak point worthiness reset).';
+      if (response && typeof response === 'object') {
+        // Use the message from backend if available
+        if ('message' in response && response.message) {
+          costMessage = response.message;
+        }
       }
       
       showAlert('Success!', `Past completion added. ${costMessage}`, 'success');
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
-      if (err.isAlreadyCompleted) {
+      // Check for "not enough points" error
+      if (err.message && err.message.includes('Not enough points')) {
+        showAlert('Not Enough Points', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
+      } else if (err.isAlreadyCompleted) {
         showAlert('Info', err.message, 'info');
       } else {
         showAlert('Error', 'Failed to add past completion', 'error');
