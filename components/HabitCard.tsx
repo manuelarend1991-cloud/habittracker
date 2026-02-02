@@ -41,9 +41,17 @@ export function HabitCard({
   const isDailyGoalReached = todayCompletionCount >= habit.goalCount;
   
   // Calculate next completion worth
-  // If pointStreakReset is true, next completion is worth 1 point
+  // If lastMissedCompletionDate exists, calculate days since that date
   // Otherwise, it's worth currentStreak + 1 (since we're continuing the streak)
-  const nextCompletionWorth = pointStreakReset ? 1 : habit.currentStreak + 1;
+  let nextCompletionWorth = habit.currentStreak + 1;
+  
+  if (habit.lastMissedCompletionDate) {
+    const lastMissedDate = new Date(habit.lastMissedCompletionDate);
+    const today = new Date();
+    const daysSinceLastMissed = Math.floor((today.getTime() - lastMissedDate.getTime()) / (1000 * 60 * 60 * 24));
+    nextCompletionWorth = Math.max(1, daysSinceLastMissed);
+  }
+  
   const nextCompletionText = `Next: ${nextCompletionWorth} pt${nextCompletionWorth !== 1 ? 's' : ''}`;
 
   return (
@@ -79,7 +87,7 @@ export function HabitCard({
           <Text style={styles.streakLabel}>Next Worth</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={[styles.streakValue, { color: habit.color }]}>{nextCompletionText}</Text>
-            {pointStreakReset && (
+            {habit.lastMissedCompletionDate && (
               <Text style={{ fontSize: 14 }}>⚠️</Text>
             )}
           </View>

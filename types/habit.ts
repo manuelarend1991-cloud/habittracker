@@ -10,6 +10,7 @@ export interface Habit {
   maxStreak: number;
   totalPoints: number;
   pointStreakReset?: boolean;
+  lastMissedCompletionDate?: string | null;
   createdAt: string;
 }
 
@@ -43,6 +44,7 @@ export interface DashboardData {
     maxStreak: number;
     totalPoints: number;
     pointStreakReset?: boolean;
+    lastMissedCompletionDate?: string | null;
     recentCompletions: Array<{
       id: string;
       completedAt: string;
