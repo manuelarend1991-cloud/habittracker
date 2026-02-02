@@ -30,6 +30,7 @@ export interface Achievement {
   title: string;
   description: string;
   points: number;
+  icon?: string;
   unlockedAt?: string;
   createdAt: string;
 }

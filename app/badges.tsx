@@ -19,6 +19,7 @@ interface AchievementData {
   description: string;
   points: number;
   locked: boolean;
+  icon?: string;
 }
 
 export default function BadgesScreen() {
@@ -116,6 +117,7 @@ export default function BadgesScreen() {
           {achievements.map((achievement, index) => {
             const isLocked = achievement.locked;
             const pointsText = `${achievement.points}`;
+            const emojiIcon = achievement.icon || '🏆';
             
             return (
               <View 
@@ -125,13 +127,8 @@ export default function BadgesScreen() {
                   isLocked && styles.achievementCardLocked
                 ]}
               >
-                <View style={styles.achievementIcon}>
-                  <IconSymbol
-                    ios_icon_name={isLocked ? 'lock.fill' : 'trophy.fill'}
-                    android_material_icon_name={isLocked ? 'lock' : 'emoji-events'}
-                    size={32}
-                    color={isLocked ? colors.textSecondary : colors.success}
-                  />
+                <View style={[styles.achievementIcon, isLocked && styles.achievementIconLocked]}>
+                  <Text style={styles.achievementEmoji}>{emojiIcon}</Text>
                 </View>
                 <View style={styles.achievementContent}>
                   <Text style={[styles.achievementTitle, isLocked && styles.achievementTitleLocked]}>
@@ -286,15 +283,21 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   achievementCardLocked: {
-    opacity: 0.6,
+    opacity: 1,
   },
   achievementIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  achievementIconLocked: {
+    opacity: 0.4,
+  },
+  achievementEmoji: {
+    fontSize: 32,
   },
   achievementContent: {
     flex: 1,

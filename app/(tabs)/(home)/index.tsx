@@ -25,6 +25,47 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Habit, HabitCompletion } from '@/types/habit';
 import * as Haptics from 'expo-haptics';
 
+// Level system configuration
+const LEVEL_THRESHOLDS = [
+  { level: 1, name: 'Beginner', minPoints: 0, maxPoints: 99, color: '#94a3b8' },
+  { level: 2, name: 'Novice', minPoints: 100, maxPoints: 249, color: '#60a5fa' },
+  { level: 3, name: 'Apprentice', minPoints: 250, maxPoints: 499, color: '#34d399' },
+  { level: 4, name: 'Adept', minPoints: 500, maxPoints: 999, color: '#fbbf24' },
+  { level: 5, name: 'Expert', minPoints: 1000, maxPoints: 1999, color: '#fb923c' },
+  { level: 6, name: 'Master', minPoints: 2000, maxPoints: 3999, color: '#f87171' },
+  { level: 7, name: 'Grandmaster', minPoints: 4000, maxPoints: 7999, color: '#c084fc' },
+  { level: 8, name: 'Legend', minPoints: 8000, maxPoints: 15999, color: '#a78bfa' },
+  { level: 9, name: 'Mythic', minPoints: 16000, maxPoints: 31999, color: '#e879f9' },
+  { level: 10, name: 'Immortal', minPoints: 32000, maxPoints: Infinity, color: '#fbbf24' },
+];
+
+function getLevelInfo(totalPoints: number) {
+  const currentLevel = LEVEL_THRESHOLDS.find(
+    (level) => totalPoints >= level.minPoints && totalPoints <= level.maxPoints
+  ) || LEVEL_THRESHOLDS[0];
+
+  const nextLevel = LEVEL_THRESHOLDS.find((level) => level.level === currentLevel.level + 1);
+  
+  const pointsInCurrentLevel = totalPoints - currentLevel.minPoints;
+  const pointsNeededForNextLevel = nextLevel 
+    ? nextLevel.minPoints - currentLevel.minPoints 
+    : 0;
+  const progressPercentage = nextLevel 
+    ? (pointsInCurrentLevel / pointsNeededForNextLevel) * 100 
+    : 100;
+
+  return {
+    level: currentLevel.level,
+    name: currentLevel.name,
+    color: currentLevel.color,
+    pointsInCurrentLevel,
+    pointsNeededForNextLevel,
+    progressPercentage,
+    nextLevelName: nextLevel?.name || 'Max Level',
+    nextLevelPoints: nextLevel?.minPoints || totalPoints,
+  };
+}
+
 export default function HomeScreen() {
   const { 
     habits, 
@@ -69,7 +110,6 @@ export default function HomeScreen() {
       return 0;
     }
 
-    // Use completionsToday from backend (more reliable)
     return dashboardHabit.completionsToday || 0;
   };
 
@@ -171,14 +211,13 @@ export default function HomeScreen() {
       return;
     }
 
-    // IMMEDIATE CHECK: Verify user has enough points BEFORE attempting to add
     const currentPoints = dashboard?.totalPoints || 0;
     console.log('[HomeScreen] Checking points before adding past completion. Current total points:', currentPoints);
     
     if (currentPoints < 10) {
       console.log('[HomeScreen] Insufficient points detected immediately:', currentPoints, '< 10');
       showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
-      return; // Stop here, don't make the API call
+      return;
     }
 
     console.log('[HomeScreen] User has sufficient points, proceeding with adding past completion for date:', date);
@@ -299,9 +338,16 @@ export default function HomeScreen() {
     });
   }
 
-  const totalPointsText = dashboard ? `${dashboard.totalPoints}` : '0';
+  const totalPoints = dashboard?.totalPoints || 0;
+  const totalPointsText = `${totalPoints}`;
   const recentBadgesCount = dashboard?.recentAchievements?.length || 0;
   const recentBadgesText = `${recentBadgesCount}`;
+
+  const levelInfo = getLevelInfo(totalPoints);
+  const levelText = `Level ${levelInfo.level}`;
+  const levelNameText = levelInfo.name;
+  const progressText = `${levelInfo.pointsInCurrentLevel} / ${levelInfo.pointsNeededForNextLevel}`;
+  const nextLevelText = `Next: ${levelInfo.nextLevelName}`;
 
   return (
     <View style={commonStyles.container}>
@@ -379,6 +425,37 @@ export default function HomeScreen() {
         />
 
         <View style={styles.summaryCard}>
+          <View style={styles.levelSection}>
+            <View style={styles.levelHeader}>
+              <View style={styles.levelBadge}>
+                <Text style={[styles.levelNumber, { color: levelInfo.color }]}>{levelInfo.level}</Text>
+              </View>
+              <View style={styles.levelInfo}>
+                <Text style={styles.levelText}>{levelText}</Text>
+                <Text style={styles.levelName}>{levelNameText}</Text>
+              </View>
+            </View>
+            <View style={styles.levelProgressContainer}>
+              <View style={styles.levelProgressBar}>
+                <View 
+                  style={[
+                    styles.levelProgressFill, 
+                    { 
+                      width: `${Math.min(levelInfo.progressPercentage, 100)}%`,
+                      backgroundColor: levelInfo.color 
+                    }
+                  ]} 
+                />
+              </View>
+              <View style={styles.levelProgressLabels}>
+                <Text style={styles.levelProgressText}>{progressText}</Text>
+                <Text style={styles.levelNextText}>{nextLevelText}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.summaryDividerHorizontal} />
+
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <IconSymbol
@@ -750,6 +827,74 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
     elevation: 2,
     position: 'relative',
+  },
+  levelSection: {
+    marginBottom: 20,
+  },
+  levelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 12,
+  },
+  levelBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: colors.border,
+  },
+  levelNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  levelInfo: {
+    flex: 1,
+  },
+  levelText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  levelName: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  levelProgressContainer: {
+    gap: 8,
+  },
+  levelProgressBar: {
+    height: 10,
+    backgroundColor: colors.border,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  levelProgressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  levelProgressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  levelProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  levelNextText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  summaryDividerHorizontal: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
