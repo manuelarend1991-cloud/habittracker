@@ -12,7 +12,7 @@ import { colors } from '@/styles/commonStyles';
 
 // Comprehensive emoji list organized by category
 const EMOJI_CATEGORIES = {
-  'Fitness & Sports': [
+  'Fitness': [
     '💪', '🏃', '🚴', '🏋️', '🤸', '🧘', '⛹️', '🏊', '🚣', '🏇',
     '⛷️', '🏂', '🤺', '🤼', '🤾', '🏌️', '🏓', '🏸', '🏒', '🏑',
     '🥊', '🥋', '🥅', '⛳', '⛸️', '🎣', '🤿', '🎽', '🎿', '🛷',
@@ -20,14 +20,14 @@ const EMOJI_CATEGORIES = {
     '🥏', '🎳', '🏏', '🥍', '🏑', '🏒', '🥅', '⚽', '⚾', '🥎',
     '🏀', '🏐', '🏈', '🏉', '🎾', '🥏', '🎳', '🏏', '🏑', '🏒',
   ],
-  'Health & Wellness': [
+  'Health': [
     '❤️', '💚', '💙', '💜', '🧡', '💛', '🤍', '🖤', '🤎', '💗',
     '💓', '💕', '💖', '💞', '💝', '🩷', '🫀', '🧠', '🦷', '🦴',
     '👁️', '👀', '👂', '👃', '👅', '🫁', '🫀', '🩺', '💊', '💉',
     '🌡️', '🩹', '🩼', '🩻', '🧬', '🔬', '🧪', '🧫', '🦠', '🧴',
     '🧼', '🧽', '🧹', '🧺', '🧻', '🪥', '🪒', '🧖', '🛀', '🛁',
   ],
-  'Food & Drink': [
+  'Food': [
     '🍎', '🍏', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
     '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦',
     '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔',
@@ -41,7 +41,7 @@ const EMOJI_CATEGORIES = {
     '☕', '🍵', '🧃', '🥤', '🧋', '🍶', '🍺', '🍻', '🥂', '🍷',
     '🥃', '🍸', '🍹', '🧉', '🍾', '🧊', '🥄', '🍴', '🍽️', '🥢',
   ],
-  'Activities & Hobbies': [
+  'Hobbies': [
     '📚', '📖', '📝', '✍️', '✏️', '🖊️', '🖋️', '🖍️', '📕', '📗',
     '📘', '📙', '📔', '📓', '📒', '📃', '📄', '📰', '🗞️', '📑',
     '🎨', '🖌️', '🖍️', '🎭', '🎪', '🎬', '🎤', '🎧', '🎼', '🎹',
@@ -51,7 +51,7 @@ const EMOJI_CATEGORIES = {
     '🎀', '🎁', '🎗️', '🎟️', '🎫', '🎖️', '🏆', '🏅', '🥇', '🥈',
     '🥉', '⚽', '⚾', '🥎', '🏀', '🏐', '🏈', '🏉', '🎾', '🥏',
   ],
-  'Work & Study': [
+  'Work': [
     '💼', '👔', '🎓', '📚', '📖', '📝', '✏️', '📏', '📐', '📌',
     '📍', '✂️', '🖇️', '📎', '🖊️', '🖋️', '✒️', '🖍️', '📁', '📂',
     '🗂️', '📅', '📆', '🗒️', '🗓️', '📇', '📈', '📉', '📊', '📋',
@@ -59,7 +59,7 @@ const EMOJI_CATEGORIES = {
     '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '💾', '💿', '📀', '🧮',
     '🔬', '🔭', '📡', '🛰️', '🧪', '🧫', '🧬', '🔭', '📡', '🛰️',
   ],
-  'Nature & Animals': [
+  'Nature': [
     '🌱', '🌿', '☘️', '🍀', '🎋', '🎍', '🌾', '🌵', '🌴', '🌳',
     '🌲', '🌰', '🌻', '🌺', '🌸', '🌷', '🌹', '🥀', '🌼', '🌻',
     '🌞', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑',
@@ -79,7 +79,7 @@ const EMOJI_CATEGORIES = {
     '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🪶', '🐓', '🦃', '🦤',
     '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦫',
   ],
-  'Objects & Tools': [
+  'Objects': [
     '⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️',
     '🗜️', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️',
     '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️',
@@ -90,7 +90,7 @@ const EMOJI_CATEGORIES = {
     '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡️', '⚔️',
     '🛡️', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '🪬',
   ],
-  'Symbols & Misc': [
+  'Symbols': [
     '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
     '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝',
     '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️',
@@ -135,19 +135,16 @@ export function EmojiPicker({ selectedEmoji, onSelectEmoji, color }: EmojiPicker
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>(Object.keys(EMOJI_CATEGORIES)[0]);
 
-  // Filter emojis based on search
   const getFilteredEmojis = () => {
     if (!searchQuery.trim()) {
       return EMOJI_CATEGORIES[activeCategory as keyof typeof EMOJI_CATEGORIES] || [];
     }
 
-    // Search across all categories
     const allEmojis: string[] = [];
     Object.values(EMOJI_CATEGORIES).forEach(emojis => {
       allEmojis.push(...emojis);
     });
     
-    // For now, just return all emojis if searching (emoji search by name would require a mapping)
     return allEmojis;
   };
 
@@ -156,7 +153,6 @@ export function EmojiPicker({ selectedEmoji, onSelectEmoji, color }: EmojiPicker
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <TextInput
         style={styles.searchInput}
         value={searchQuery}
@@ -165,14 +161,8 @@ export function EmojiPicker({ selectedEmoji, onSelectEmoji, color }: EmojiPicker
         placeholderTextColor={colors.textSecondary}
       />
 
-      {/* Category Tabs */}
       {!searchQuery && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryScrollContent}
-        >
+        <View style={styles.categoryContainer}>
           {categories.map((category) => {
             const isActive = category === activeCategory;
             return (
@@ -193,10 +183,9 @@ export function EmojiPicker({ selectedEmoji, onSelectEmoji, color }: EmojiPicker
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
       )}
 
-      {/* Emoji Grid */}
       <ScrollView style={styles.emojiScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.emojiGrid}>
           {filteredEmojis.map((emoji, index) => {
@@ -234,16 +223,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 12,
   },
-  categoryScroll: {
-    marginBottom: 12,
-    maxHeight: 40,
-  },
-  categoryScrollContent: {
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    paddingRight: 12,
+    marginBottom: 12,
   },
   categoryTab: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: colors.backgroundAlt,
