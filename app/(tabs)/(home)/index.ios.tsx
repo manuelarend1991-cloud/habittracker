@@ -60,8 +60,8 @@ export default function HomeScreen() {
 
   const [pointsNotificationVisible, setPointsNotificationVisible] = useState(false);
   const [pointsEarned, setPointsEarned] = useState(0);
+  const [pointsInfoModalVisible, setPointsInfoModalVisible] = useState(false);
 
-  // Calculate today's completion count for each habit - MUST BE DEFINED BEFORE USE
   const getTodayCompletionCount = (habitId: string): number => {
     const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
     if (!dashboardHabit) {
@@ -98,25 +98,22 @@ export default function HomeScreen() {
   };
 
   const handleAddCompletion = async (habitId: string) => {
-    console.log('[HomeScreen] User tapped quick add button for habit:', habitId);
+    const habit = habits.find(h => h.id === habitId);
+    console.log('[HomeScreen] User tapped quick add button for habit:', habitId, 'Current streak:', habit?.currentStreak);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const response = await addCompletion(habitId);
       
-      // Show points notification - check multiple sources for points earned
       let pointsToShow = 0;
       if (response) {
-        // First check if pointsEarned is in the response
         if (response.pointsEarned !== undefined) {
           pointsToShow = response.pointsEarned;
         } 
-        // Fallback to completion.points
         else if (response.completion && response.completion.points !== undefined) {
           pointsToShow = response.completion.points;
         }
         
-        // Always show notification, even for 1 point
-        console.log('[HomeScreen] Showing points notification:', pointsToShow);
+        console.log('[HomeScreen] Points earned:', pointsToShow, 'New streak:', response.updatedHabit?.currentStreak);
         showPointsNotification(pointsToShow);
       }
     } catch (err: any) {
@@ -131,11 +128,25 @@ export default function HomeScreen() {
   };
 
   const handleRemoveCompletion = async (habitId: string) => {
-    console.log('[HomeScreen] User tapped decrement button for habit:', habitId);
+    const habit = habits.find(h => h.id === habitId);
+    const oldTotalPoints = habit?.totalPoints || 0;
+    
+    console.log('[HomeScreen] User tapped decrement button for habit:', habitId, 'Current points:', oldTotalPoints);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await removeCompletion(habitId);
-      showAlert('Success!', 'Completion removed', 'success');
+      const response = await removeCompletion(habitId);
+      
+      const newTotalPoints = response.updatedHabit?.totalPoints || 0;
+      const pointsDeducted = oldTotalPoints - newTotalPoints;
+      
+      console.log('[HomeScreen] Completion removed. Points deducted:', pointsDeducted, 'New total:', newTotalPoints);
+      
+      if (pointsDeducted > 0) {
+        showPointsNotification(-pointsDeducted);
+        showAlert('Completion Removed', `${pointsDeducted} points deducted from this habit.`, 'success');
+      } else {
+        showAlert('Completion Removed', 'Completion removed successfully.', 'success');
+      }
     } catch (err: any) {
       console.error('[HomeScreen] Failed to remove completion:', err);
       showAlert('Error', 'Failed to remove completion. Please try again.', 'error');
@@ -164,7 +175,8 @@ export default function HomeScreen() {
       return;
     }
 
-    console.log('[HomeScreen] Adding past completion for date:', date);
+    const currentPoints = dashboard?.totalPoints || 0;
+    console.log('[HomeScreen] Adding past completion for date:', date, 'Current total points:', currentPoints);
     
     try {
       const response = await addPastCompletion(selectedHabit.id, date);
@@ -172,26 +184,27 @@ export default function HomeScreen() {
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      // Build a detailed message about the cost
-      let costMessage = '10 points deducted. Your next completion will earn 1 point (streak point worthiness reset).';
+      let costMessage = '10 points deducted.\n\n⚠️ Your next completion will earn 1 point (streak point worthiness reset).\n\n✅ Your streak counter continues.';
       if (response && typeof response === 'object') {
-        // Use the message from backend if available
         if ('message' in response && response.message) {
           costMessage = response.message;
         }
+        
+        if ('pointsCost' in response) {
+          console.log('[HomeScreen] Points deducted:', response.pointsCost, 'New total:', dashboard?.totalPoints);
+        }
       }
       
-      showAlert('Success!', `Past completion added. ${costMessage}`, 'success');
+      showAlert('Missed Completion Added! ✅', costMessage, 'success');
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
-      // Check for "not enough points" error
-      if (err.message && err.message.includes('Not enough points')) {
-        showAlert('Not Enough Points', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
+      if (err.message && (err.message.includes('Not enough points') || err.message.includes('not enough points'))) {
+        showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
       } else if (err.isAlreadyCompleted) {
-        showAlert('Info', err.message, 'info');
+        showAlert('Already Completed', err.message, 'info');
       } else {
-        showAlert('Error', 'Failed to add past completion', 'error');
+        showAlert('Error', 'Failed to add past completion. Please try again.', 'error');
       }
     }
   };
@@ -246,7 +259,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Build recent completions map for HabitsOverview
   const recentCompletionsMap: Record<string, string[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   if (dashboard) {
@@ -326,7 +338,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Habits Overview - Fixed at top */}
         <HabitsOverview 
           habits={habits} 
           onAddCompletion={handleAddCompletion}
@@ -334,7 +345,6 @@ export default function HomeScreen() {
           todayCompletionCounts={todayCompletionCountsMap}
         />
 
-        {/* Points & Badges Summary */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
             <IconSymbol
@@ -361,9 +371,22 @@ export default function HomeScreen() {
               <Text style={styles.summaryLabel}>Recent Badges</Text>
             </View>
           </View>
+          <TouchableOpacity
+            style={styles.infoButton}
+            onPress={() => {
+              console.log('[HomeScreen] User tapped points info button');
+              setPointsInfoModalVisible(true);
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="info.circle"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* Add New Habit Box */}
         <TouchableOpacity
           style={styles.addHabitBox}
           onPress={() => {
@@ -381,7 +404,6 @@ export default function HomeScreen() {
           <Text style={styles.addHabitText}>Add New Habit</Text>
         </TouchableOpacity>
 
-        {/* Habits List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Habits</Text>
           
@@ -443,7 +465,6 @@ export default function HomeScreen() {
         habit={selectedHabitForEdit}
       />
 
-      {/* Profile Modal */}
       <Modal
         visible={profileModalVisible}
         animationType="slide"
@@ -524,6 +545,92 @@ export default function HomeScreen() {
         type={alertType}
         onClose={() => setAlertVisible(false)}
       />
+
+      <Modal
+        visible={pointsInfoModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPointsInfoModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.infoModal}>
+            <View style={styles.infoHeader}>
+              <Text style={styles.infoTitle}>How Points Work 🎯</Text>
+              <TouchableOpacity
+                onPress={() => setPointsInfoModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.infoContent}>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>✨ Earning Points</Text>
+                <Text style={styles.infoText}>
+                  • Day 1 of a streak: <Text style={styles.infoBold}>1 point</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 2 of a streak: <Text style={styles.infoBold}>2 points</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3 of a streak: <Text style={styles.infoBold}>3 points</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • And so on... (points = streak day)
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>🔄 Streak Interruption</Text>
+                <Text style={styles.infoText}>
+                  If you miss a day, your point counter resets. The next completion will earn only 1 point, starting a new point streak.
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>📅 Adding Missed Completions</Text>
+                <Text style={styles.infoText}>
+                  • Fixed cost: <Text style={styles.infoBold}>10 points</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Continues your streak counter
+                </Text>
+                <Text style={styles.infoText}>
+                  • ⚠️ Resets point worthiness (next completion = 1 point)
+                </Text>
+                <Text style={styles.infoText}>
+                  • ❌ Blocked if you have less than 10 points
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>↩️ Undoing Completions</Text>
+                <Text style={styles.infoText}>
+                  • Removes the completion from today
+                </Text>
+                <Text style={styles.infoText}>
+                  • <Text style={styles.infoBold}>Deducts the points</Text> you earned from that completion
+                </Text>
+                <Text style={styles.infoText}>
+                  • Recalculates your streak and total points
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>💡 Pro Tip</Text>
+                <Text style={styles.infoText}>
+                  Build long streaks to maximize your points! The longer your streak, the more points each completion is worth.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -551,6 +658,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
     elevation: 2,
+    position: 'relative',
+  },
+  infoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
   },
   summaryItem: {
     flexDirection: 'row',
@@ -691,5 +805,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  infoModal: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    paddingBottom: 40,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  infoTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  infoContent: {
+    padding: 20,
+  },
+  infoSection: {
+    marginBottom: 24,
+  },
+  infoSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  infoBold: {
+    fontWeight: '700',
+    color: colors.text,
   },
 });

@@ -62,7 +62,6 @@ export default function HomeScreen() {
   const [pointsEarned, setPointsEarned] = useState(0);
   const [pointsInfoModalVisible, setPointsInfoModalVisible] = useState(false);
 
-  // Calculate today's completion count for each habit - MUST BE DEFINED BEFORE USE
   const getTodayCompletionCount = (habitId: string): number => {
     const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
     if (!dashboardHabit) {
@@ -105,19 +104,15 @@ export default function HomeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const response = await addCompletion(habitId);
       
-      // Show points notification - check multiple sources for points earned
       let pointsToShow = 0;
       if (response) {
-        // First check if pointsEarned is in the response
         if (response.pointsEarned !== undefined) {
           pointsToShow = response.pointsEarned;
         } 
-        // Fallback to completion.points
         else if (response.completion && response.completion.points !== undefined) {
           pointsToShow = response.completion.points;
         }
         
-        // Always show notification, even for 1 point
         console.log('[HomeScreen] Points earned:', pointsToShow, 'New streak:', response.updatedHabit?.currentStreak);
         showPointsNotification(pointsToShow);
       }
@@ -133,11 +128,25 @@ export default function HomeScreen() {
   };
 
   const handleRemoveCompletion = async (habitId: string) => {
-    console.log('[HomeScreen] User tapped decrement button for habit:', habitId);
+    const habit = habits.find(h => h.id === habitId);
+    const oldTotalPoints = habit?.totalPoints || 0;
+    
+    console.log('[HomeScreen] User tapped decrement button for habit:', habitId, 'Current points:', oldTotalPoints);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await removeCompletion(habitId);
-      showAlert('Success!', 'Completion removed', 'success');
+      const response = await removeCompletion(habitId);
+      
+      const newTotalPoints = response.updatedHabit?.totalPoints || 0;
+      const pointsDeducted = oldTotalPoints - newTotalPoints;
+      
+      console.log('[HomeScreen] Completion removed. Points deducted:', pointsDeducted, 'New total:', newTotalPoints);
+      
+      if (pointsDeducted > 0) {
+        showPointsNotification(-pointsDeducted);
+        showAlert('Completion Removed', `${pointsDeducted} points deducted from this habit.`, 'success');
+      } else {
+        showAlert('Completion Removed', 'Completion removed successfully.', 'success');
+      }
     } catch (err: any) {
       console.error('[HomeScreen] Failed to remove completion:', err);
       showAlert('Error', 'Failed to remove completion. Please try again.', 'error');
@@ -175,15 +184,12 @@ export default function HomeScreen() {
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      // Build a detailed message about the cost
       let costMessage = '10 points deducted.\n\n⚠️ Your next completion will earn 1 point (streak point worthiness reset).\n\n✅ Your streak counter continues.';
       if (response && typeof response === 'object') {
-        // Use the message from backend if available
         if ('message' in response && response.message) {
           costMessage = response.message;
         }
         
-        // Log the point changes
         if ('pointsCost' in response) {
           console.log('[HomeScreen] Points deducted:', response.pointsCost, 'New total:', dashboard?.totalPoints);
         }
@@ -193,7 +199,6 @@ export default function HomeScreen() {
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
-      // Check for "not enough points" error
       if (err.message && (err.message.includes('Not enough points') || err.message.includes('not enough points'))) {
         showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
       } else if (err.isAlreadyCompleted) {
@@ -254,7 +259,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Build recent completions map for HabitsOverview
   const recentCompletionsMap: Record<string, string[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   if (dashboard) {
@@ -334,7 +338,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Habits Overview - Fixed at top */}
         <HabitsOverview 
           habits={habits} 
           onAddCompletion={handleAddCompletion}
@@ -342,7 +345,6 @@ export default function HomeScreen() {
           todayCompletionCounts={todayCompletionCountsMap}
         />
 
-        {/* Points & Badges Summary */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
             <IconSymbol
@@ -385,7 +387,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Add New Habit Box */}
         <TouchableOpacity
           style={styles.addHabitBox}
           onPress={() => {
@@ -403,7 +404,6 @@ export default function HomeScreen() {
           <Text style={styles.addHabitText}>Add New Habit</Text>
         </TouchableOpacity>
 
-        {/* Habits List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Habits</Text>
           
@@ -465,7 +465,6 @@ export default function HomeScreen() {
         habit={selectedHabitForEdit}
       />
 
-      {/* Profile Modal */}
       <Modal
         visible={profileModalVisible}
         animationType="slide"
@@ -547,7 +546,6 @@ export default function HomeScreen() {
         onClose={() => setAlertVisible(false)}
       />
 
-      {/* Points Info Modal */}
       <Modal
         visible={pointsInfoModalVisible}
         animationType="slide"
@@ -607,6 +605,19 @@ export default function HomeScreen() {
                 </Text>
                 <Text style={styles.infoText}>
                   • ❌ Blocked if you have less than 10 points
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>↩️ Undoing Completions</Text>
+                <Text style={styles.infoText}>
+                  • Removes the completion from today
+                </Text>
+                <Text style={styles.infoText}>
+                  • <Text style={styles.infoBold}>Deducts the points</Text> you earned from that completion
+                </Text>
+                <Text style={styles.infoText}>
+                  • Recalculates your streak and total points
                 </Text>
               </View>
 
