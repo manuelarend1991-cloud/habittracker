@@ -40,12 +40,15 @@ export interface DashboardData {
     name: string;
     color: string;
     icon: string;
+    goalCount: number;
+    goalPeriodDays: number;
     currentStreak: number;
     maxStreak: number;
     totalPoints: number;
     pointStreakReset?: boolean;
     lastMissedCompletionDate?: string | null;
     nextCompletionPoints: number;
+    completionsToday: number;
     recentCompletions: {
       id: string;
       completedAt: string;

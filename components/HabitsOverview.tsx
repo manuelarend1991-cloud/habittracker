@@ -10,6 +10,7 @@ interface HabitsOverviewProps {
   recentCompletions?: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]>;
   todayCompletionCounts?: Record<string, number>;
   nextCompletionPoints?: Record<string, number>;
+  goalCounts?: Record<string, number>;
 }
 
 export function HabitsOverview({ 
@@ -17,7 +18,8 @@ export function HabitsOverview({
   onAddCompletion, 
   recentCompletions = {},
   todayCompletionCounts = {},
-  nextCompletionPoints = {}
+  nextCompletionPoints = {},
+  goalCounts = {}
 }: HabitsOverviewProps) {
   if (habits.length === 0) {
     return null;
@@ -74,9 +76,10 @@ export function HabitsOverview({
         const currentStreakText = `${habit.currentStreak}`;
         const bestStreakText = `${habit.maxStreak}`;
         const todayCount = todayCompletionCounts[habit.id] || 0;
-        const isDailyGoalReached = todayCount >= habit.goalCount;
+        const goalCount = goalCounts[habit.id] || habit.goalCount || 1;
+        const isDailyGoalReached = todayCount >= goalCount;
         const nextPoints = getNextCompletionPoints(habit.id);
-        const completionRatioText = `${todayCount}/${habit.goalCount}`;
+        const completionRatioText = `${todayCount}/${goalCount}`;
 
         return (
           <View key={habit.id} style={styles.habitRow}>

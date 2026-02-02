@@ -69,13 +69,8 @@ export default function HomeScreen() {
       return 0;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const todayCompletions = dashboardHabit.recentCompletions.filter(c => {
-      const completionDate = new Date(c.completedAt).toISOString().split('T')[0];
-      return completionDate === today;
-    });
-
-    return todayCompletions.length;
+    // Use completionsToday from backend (more reliable)
+    return dashboardHabit.completionsToday || 0;
   };
 
   const handleRefresh = async () => {
@@ -286,11 +281,16 @@ export default function HomeScreen() {
   const recentCompletionsMap: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   const nextCompletionPointsMap: Record<string, number> = {};
+  const goalCountsMap: Record<string, number> = {};
   if (dashboard) {
     dashboard.habits.forEach(h => {
-      recentCompletionsMap[h.id] = h.recentCompletions;
-      todayCompletionCountsMap[h.id] = getTodayCompletionCount(h.id);
-      nextCompletionPointsMap[h.id] = h.nextCompletionPoints || 1;
+      recentCompletionsMap[h.id] = h.recentCompletions.map(c => ({
+        completedAt: c.completedAt,
+        isMissedCompletion: c.isMissedCompletion
+      }));
+      todayCompletionCountsMap[h.id] = h.completionsToday || 0;
+      nextCompletionPointsMap[h.id] = h.nextCompletionPoints || 0;
+      goalCountsMap[h.id] = h.goalCount || 1;
     });
   }
 
@@ -370,6 +370,7 @@ export default function HomeScreen() {
           recentCompletions={recentCompletionsMap}
           todayCompletionCounts={todayCompletionCountsMap}
           nextCompletionPoints={nextCompletionPointsMap}
+          goalCounts={goalCountsMap}
         />
 
         <View style={styles.summaryCard}>
@@ -458,6 +459,7 @@ export default function HomeScreen() {
                 const recentCompletions = dashboardHabit?.recentCompletions.map(c => c.completedAt) || [];
                 const todayCount = getTodayCompletionCount(habit.id);
                 const pointStreakReset = dashboardHabit?.pointStreakReset || false;
+                const nextPoints = dashboardHabit?.nextCompletionPoints || 0;
                 
                 return (
                   <HabitCard
@@ -470,6 +472,7 @@ export default function HomeScreen() {
                     recentCompletions={recentCompletions}
                     todayCompletionCount={todayCount}
                     pointStreakReset={pointStreakReset}
+                    nextCompletionPoints={nextPoints}
                   />
                 );
               })}
@@ -602,31 +605,49 @@ export default function HomeScreen() {
               <View style={styles.infoSection}>
                 <Text style={styles.infoSectionTitle}>✨ Earning Points - NEW RULE</Text>
                 <Text style={styles.infoText}>
-                  Points earned = <Text style={styles.infoBold}>days since your last completion without a plaster 🩹</Text>
+                  <Text style={styles.infoBold}>Points are ONLY awarded when you complete your daily goal!</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  {'\n'}Example:
+                  {'\n'}For example, if your goal is 2 completions per day:
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 1: Complete → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • 1st completion (1/2): <Text style={styles.infoBold}>0 points</Text> (goal not met yet)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 2: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since last)
+                  • 2nd completion (2/2): <Text style={styles.infoBold}>Full points!</Text> (goal achieved ✓)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 3: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since last)
+                  • 3rd+ completion (3/2): <Text style={styles.infoBold}>0 points</Text> (goal already met)
+                </Text>
+                <Text style={styles.infoText}>
+                  {'\n'}Points earned = <Text style={styles.infoBold}>days since your last completion without a plaster 🩹</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  {'\n'}The "+X" badge shows how many points you&apos;ll earn when you complete today&apos;s goal!
+                </Text>
+                <Text style={styles.infoText}>
+                  {'\n'}Example (1 completion per day goal):
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 1: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 2: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
                 </Text>
                 <Text style={styles.infoText}>
                   • Day 4: Miss, add plaster 🩹 (costs 10 points)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 5: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3, last non-plastered)
+                  • Day 5: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3)
                 </Text>
                 <Text style={styles.infoText}>
                   • Day 6-7: Skip
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 8: Complete → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 5, last non-plastered)
+                  • Day 8: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 5)
                 </Text>
               </View>
 
@@ -663,9 +684,18 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>💡 Pro Tip</Text>
+                <Text style={styles.infoSectionTitle}>💡 Pro Tips</Text>
                 <Text style={styles.infoText}>
-                  Build long streaks to maximize your points! The longer your streak, the more points each completion is worth.
+                  • <Text style={styles.infoBold}>Complete your daily goal</Text> to earn points! Partial completions (1/2) earn nothing.
+                </Text>
+                <Text style={styles.infoText}>
+                  • The longer the gap since your last completion, the more points you&apos;ll earn when you hit your goal!
+                </Text>
+                <Text style={styles.infoText}>
+                  • Watch the "+X" badge to see how many points you&apos;ll get when you complete today&apos;s goal.
+                </Text>
+                <Text style={styles.infoText}>
+                  • Once you hit your daily goal, the button shows ✓ and you won&apos;t earn more points today.
                 </Text>
               </View>
             </ScrollView>
