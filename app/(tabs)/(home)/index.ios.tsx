@@ -640,34 +640,52 @@ export default function HomeScreen() {
                   • 3rd+ completion (3/2): <Text style={styles.infoBold}>0 points</Text> (goal already met)
                 </Text>
                 <Text style={styles.infoText}>
-                  {'\n'}Points earned = <Text style={styles.infoBold}>days since your last completion without a plaster 🩹</Text>
+                  {'\n'}Points earned = <Text style={styles.infoBold}>days since the last plaster 🩹 within your current streak</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  If there&apos;s no plaster in your current streak: <Text style={styles.infoBold}>days since the first day of your streak</Text>
                 </Text>
                 <Text style={styles.infoText}>
                   {'\n'}The "+X" badge shows how many points you&apos;ll earn when you complete today&apos;s goal!
                 </Text>
                 <Text style={styles.infoText}>
-                  {'\n'}Example (1 completion per day goal):
+                  {'\n'}<Text style={styles.infoBold}>Example 1: No plasters in streak</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 1: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 1: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since streak start)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 2: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 2: Complete (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (2 days since streak start)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 3: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 3: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since streak start)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 4: Complete (1/1) → Earn <Text style={styles.infoBold}>4 points</Text> (4 days since streak start)
+                </Text>
+                <Text style={styles.infoText}>
+                  {'\n'}<Text style={styles.infoBold}>Example 2: With plaster</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 1: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since streak start)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 2: Complete (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (2 days since streak start)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since streak start)
                 </Text>
                 <Text style={styles.infoText}>
                   • Day 4: Miss, add plaster 🩹 (costs 10 points)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 5: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3)
+                  • Day 5: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 4 plaster)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 6-7: Skip
+                  • Day 6: Complete (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (2 days since Day 4 plaster)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 8: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 5)
+                  • Day 7: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 4 plaster)
                 </Text>
               </View>
 
@@ -683,7 +701,7 @@ export default function HomeScreen() {
                   • Marked with a plaster badge 🩹 in the calendar
                 </Text>
                 <Text style={styles.infoText}>
-                  • Does NOT count as &quot;last non-plastered completion&quot; for point calculation
+                  • Becomes the new reference point: your next completion will earn points based on days since this plaster
                 </Text>
                 <Text style={styles.infoText}>
                   • ❌ Blocked if you have less than 10 points

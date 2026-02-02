@@ -717,34 +717,64 @@ export default function HomeScreen() {
                   • 3rd+ completion (3/2): <Text style={styles.infoBold}>0 points</Text> (goal already met)
                 </Text>
                 <Text style={styles.infoText}>
-                  {'\n'}Points earned = <Text style={styles.infoBold}>days since your last completion without a plaster 🩹</Text>
+                  {'\n'}Points earned = <Text style={styles.infoBold}>days since your last regular completion</Text>
                 </Text>
                 <Text style={styles.infoText}>
                   {'\n'}The "+X" badge shows how many points you&apos;ll earn when you complete today&apos;s goal!
                 </Text>
                 <Text style={styles.infoText}>
-                  {'\n'}Example (1 completion per day goal):
+                  {'\n'}<Text style={styles.infoBold}>Example 1: Consistent completions</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 1: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (first completion)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 2: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 1)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 3: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text>
+                  • Day 3: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 2)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 4: Miss, add plaster 🩹 (costs 10 points)
+                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 5: Complete (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3)
+                  {'\n'}<Text style={styles.infoBold}>Example 2: With a gap (no plaster)</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 6-7: Skip
+                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (first completion)
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 8: Complete (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 5)
+                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 1)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3: Miss (no completion, no plaster) ❌ Streak breaks!
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (2 days since Day 2)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 5: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 4)
+                </Text>
+                <Text style={styles.infoText}>
+                  {'\n'}<Text style={styles.infoBold}>Example 3: With plaster (streak continues)</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (first completion)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 1)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3: Miss, add plaster 🩹 (costs 10 points, streak continues)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (2 days since Day 2)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 5: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 4)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 6: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 5)
                 </Text>
               </View>
 
@@ -754,19 +784,16 @@ export default function HomeScreen() {
                   • Fixed cost: <Text style={styles.infoBold}>10 points</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • Continues your streak counter
+                  • Continues your streak counter (prevents streak from breaking)
                 </Text>
                 <Text style={styles.infoText}>
                   • Marked with a plaster badge 🩹 in the calendar
                 </Text>
                 <Text style={styles.infoText}>
-                  • Does NOT count as &quot;last non-plastered completion&quot; for point calculation
+                  • <Text style={styles.infoBold}>Does NOT count as a regular completion</Text> - your next completion will earn points based on days since your last REGULAR completion (not the plaster)
                 </Text>
                 <Text style={styles.infoText}>
                   • ❌ Blocked if you have less than 10 points
-                </Text>
-                <Text style={styles.infoText}>
-                  • Once completed, the points earned badge shows how many points you achieved by adding the plaster
                 </Text>
               </View>
 
@@ -789,13 +816,19 @@ export default function HomeScreen() {
                   • <Text style={styles.infoBold}>Complete your daily goal</Text> to earn points! Partial completions (1/2) earn nothing.
                 </Text>
                 <Text style={styles.infoText}>
-                  • The longer the gap since your last completion, the more points you&apos;ll earn when you hit your goal!
+                  • Points are based on <Text style={styles.infoBold}>days since your last regular completion</Text>, not plasters.
+                </Text>
+                <Text style={styles.infoText}>
+                  • If you complete daily, you earn 1 point per day. If you skip a day (without plaster), your next completion earns more points!
                 </Text>
                 <Text style={styles.infoText}>
                   • Watch the "+X" badge to see how many points you&apos;ll get when you complete today&apos;s goal.
                 </Text>
                 <Text style={styles.infoText}>
                   • Once you hit your daily goal, the button shows ✓ and you won&apos;t earn more points today.
+                </Text>
+                <Text style={styles.infoText}>
+                  • Plasters (🩹) keep your streak alive but don&apos;t count as regular completions for point calculation.
                 </Text>
               </View>
             </ScrollView>
