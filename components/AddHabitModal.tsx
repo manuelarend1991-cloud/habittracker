@@ -12,8 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { colors, habitColors } from '@/styles/commonStyles';
-import { IconSymbol } from './IconSymbol';
-import { DEFAULT_HABIT_ICONS } from '@/constants/habitIcons';
+import { EmojiPicker } from './EmojiPicker';
 
 // Reusable Confirmation Modal Component
 interface ConfirmModalProps {
@@ -143,9 +142,10 @@ interface AddHabitModalProps {
 export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(habitColors[0]);
-  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_HABIT_ICONS[0].name);
+  const [selectedIcon, setSelectedIcon] = useState('⭐');
   const [goalCount, setGoalCount] = useState('1');
   const [goalPeriodDays, setGoalPeriodDays] = useState('7');
+  const [streakRequiredDays, setStreakRequiredDays] = useState('2');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,8 +173,9 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
       setName('');
       setGoalCount('1');
       setGoalPeriodDays('7');
+      setStreakRequiredDays('2');
       setSelectedColor(habitColors[0]);
-      setSelectedIcon(DEFAULT_HABIT_ICONS[0].name);
+      setSelectedIcon('⭐');
       onClose();
     } catch (err) {
       console.error('[AddHabitModal] Error adding habit:', err);
@@ -186,7 +187,8 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
 
   const goalCountNum = parseInt(goalCount) || 0;
   const goalPeriodNum = parseInt(goalPeriodDays) || 0;
-  const goalDescription = `${goalCountNum}x per ${goalPeriodNum} days`;
+  const streakDaysNum = parseInt(streakRequiredDays) || 0;
+  const goalDescription = `Complete ${goalCountNum}x per day, ${streakDaysNum} times in ${goalPeriodNum} days for a streak`;
 
   return (
     <Modal
@@ -203,12 +205,7 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New Habit</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <IconSymbol
-                ios_icon_name="xmark"
-                android_material_icon_name="close"
-                size={24}
-                color={colors.text}
-              />
+              <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -222,35 +219,18 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
               placeholderTextColor={colors.textSecondary}
             />
 
-            <Text style={styles.label}>Icon</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.iconScrollView}
-              contentContainerStyle={styles.iconScrollContent}
-            >
-              {DEFAULT_HABIT_ICONS.map((icon) => {
-                const isSelected = icon.name === selectedIcon;
-                return (
-                  <TouchableOpacity
-                    key={icon.name}
-                    style={[
-                      styles.iconOption,
-                      isSelected && styles.iconOptionSelected,
-                      { borderColor: selectedColor }
-                    ]}
-                    onPress={() => setSelectedIcon(icon.name)}
-                  >
-                    <IconSymbol
-                      ios_icon_name={icon.name}
-                      android_material_icon_name={icon.name}
-                      size={28}
-                      color={isSelected ? selectedColor : colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <Text style={styles.label}>Icon (Emoji)</Text>
+            <View style={styles.selectedEmojiContainer}>
+              <Text style={styles.selectedEmoji}>{selectedIcon}</Text>
+              <Text style={styles.selectedEmojiLabel}>Selected Icon</Text>
+            </View>
+            <View style={styles.emojiPickerContainer}>
+              <EmojiPicker
+                selectedEmoji={selectedIcon}
+                onSelectEmoji={setSelectedIcon}
+                color={selectedColor}
+              />
+            </View>
 
             <Text style={styles.label}>Color</Text>
             <View style={styles.colorGrid}>
@@ -267,21 +247,18 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
                     onPress={() => setSelectedColor(color)}
                   >
                     {isSelected && (
-                      <IconSymbol
-                        ios_icon_name="checkmark"
-                        android_material_icon_name="check"
-                        size={20}
-                        color="#ffffff"
-                      />
+                      <Text style={styles.checkmark}>✓</Text>
                     )}
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <Text style={styles.label}>Daily Repetitions Required</Text>
+            <Text style={styles.sectionTitle}>Habit Settings</Text>
+            
+            <Text style={styles.label}>Completions Required Per Day</Text>
             <Text style={styles.helpText}>
-              How many times per day must this habit be completed?
+              How many times per day must this habit be completed to count as &quot;done&quot; for that day?
             </Text>
             <TextInput
               style={styles.input}
@@ -291,13 +268,23 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
               placeholder="1"
               placeholderTextColor={colors.textSecondary}
             />
-            <Text style={styles.helpText}>
-              The + button will be disabled once you reach this number for the day.
-            </Text>
 
-            <Text style={styles.label}>Goal Period (Days)</Text>
+            <Text style={styles.label}>Days Required for Streak</Text>
             <Text style={styles.helpText}>
-              Track your streak over this many days
+              How many days with completion are needed...
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={streakRequiredDays}
+              onChangeText={setStreakRequiredDays}
+              keyboardType="number-pad"
+              placeholder="2"
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Text style={styles.label}>...within this Period (Days)</Text>
+            <Text style={styles.helpText}>
+              ...within how many consecutive days?
             </Text>
             <TextInput
               style={styles.input}
@@ -307,7 +294,10 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
               placeholder="7"
               placeholderTextColor={colors.textSecondary}
             />
-            <Text style={styles.goalDescription}>{goalDescription}</Text>
+
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryText}>{goalDescription}</Text>
+            </View>
 
             {error && (
               <View style={styles.errorContainer}>
@@ -359,6 +349,15 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: colors.text,
+    fontWeight: '300',
   },
   modalBody: {
     padding: 20,
@@ -370,6 +369,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 24,
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
@@ -379,26 +385,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  iconScrollView: {
+  selectedEmojiContainer: {
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  selectedEmoji: {
+    fontSize: 48,
     marginBottom: 8,
   },
-  iconScrollContent: {
-    gap: 12,
-    paddingRight: 12,
+  selectedEmojiLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
-  iconOption: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  iconOptionSelected: {
-    borderWidth: 3,
+  emojiPickerContainer: {
+    height: 300,
     backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   colorGrid: {
     flexDirection: 'row',
@@ -416,23 +424,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.text,
   },
-  goalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  goalInput: {
-    flex: 1,
-  },
-  goalLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  goalSeparator: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: -20,
+  checkmark: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: '700',
   },
   helpText: {
     fontSize: 13,
@@ -440,12 +435,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 18,
   },
-  goalDescription: {
+  summaryBox: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryText: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 8,
+    color: colors.text,
     textAlign: 'center',
     fontWeight: '600',
+    lineHeight: 20,
   },
   errorContainer: {
     backgroundColor: '#fee2e2',

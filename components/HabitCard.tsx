@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Habit } from '@/types/habit';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from './IconSymbol';
 
 interface HabitCardProps {
   habit: Habit;
@@ -28,7 +27,7 @@ export function HabitCard({
   todayCompletionCount = 0,
   pointStreakReset = false
 }: HabitCardProps) {
-  const goalText = `Goal: ${habit.goalCount}x per ${habit.goalPeriodDays} days`;
+  const goalText = `Goal: ${habit.goalCount}x per day`;
   const currentStreakText = `${habit.currentStreak}`;
   const bestStreakText = `${habit.maxStreak}`;
   const todayCountText = `${todayCompletionCount}`;
@@ -54,12 +53,7 @@ export function HabitCard({
       {/* Header: Icon, Habit Name and Settings Icon */}
       <View style={styles.header}>
         <View style={styles.nameContainer}>
-          <IconSymbol
-            ios_icon_name={habit.icon || 'star'}
-            android_material_icon_name={habit.icon || 'star'}
-            size={18}
-            color={habit.color}
-          />
+          <Text style={styles.iconEmoji}>{habit.icon || '⭐'}</Text>
           <Text style={styles.habitName}>{habit.name}</Text>
         </View>
         <TouchableOpacity
@@ -67,12 +61,7 @@ export function HabitCard({
           onPress={onSettingsPress}
           activeOpacity={0.7}
         >
-          <IconSymbol
-            ios_icon_name="gear"
-            android_material_icon_name="settings"
-            size={22}
-            color={colors.textSecondary}
-          />
+          <Text style={styles.settingsIcon}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
@@ -137,12 +126,7 @@ export function HabitCard({
             onPress={onCalendarPress}
             activeOpacity={0.7}
           >
-            <IconSymbol
-              ios_icon_name="calendar"
-              android_material_icon_name="calendar-today"
-              size={24}
-              color={habit.color}
-            />
+            <Text style={[styles.calendarIcon, { color: habit.color }]}>📅</Text>
           </TouchableOpacity>
 
           {onDecrement && todayCompletionCount > 0 && (
@@ -151,12 +135,7 @@ export function HabitCard({
               onPress={onDecrement}
               activeOpacity={0.7}
             >
-              <IconSymbol
-                ios_icon_name="minus"
-                android_material_icon_name="remove"
-                size={20}
-                color={habit.color}
-              />
+              <Text style={[styles.buttonText, { color: habit.color }]}>−</Text>
             </TouchableOpacity>
           )}
 
@@ -171,19 +150,9 @@ export function HabitCard({
             disabled={isDailyGoalReached}
           >
             {isDailyGoalReached ? (
-              <IconSymbol
-                ios_icon_name="checkmark"
-                android_material_icon_name="check"
-                size={24}
-                color="#ffffff"
-              />
+              <Text style={styles.buttonText}>✓</Text>
             ) : (
-              <IconSymbol
-                ios_icon_name="plus"
-                android_material_icon_name="add"
-                size={24}
-                color="#ffffff"
-              />
+              <Text style={styles.buttonText}>+</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -215,6 +184,9 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  iconEmoji: {
+    fontSize: 20,
+  },
   habitName: {
     fontSize: 18,
     fontWeight: '600',
@@ -223,6 +195,9 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+  },
+  settingsIcon: {
+    fontSize: 22,
   },
   streakRow: {
     flexDirection: 'row',
@@ -318,6 +293,9 @@ const styles = StyleSheet.create({
   calendarButton: {
     padding: 8,
   },
+  calendarIcon: {
+    fontSize: 24,
+  },
   decrementButton: {
     width: 36,
     height: 36,
@@ -337,5 +315,10 @@ const styles = StyleSheet.create({
   },
   incrementButtonDisabled: {
     opacity: 0.6,
+  },
+  buttonText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

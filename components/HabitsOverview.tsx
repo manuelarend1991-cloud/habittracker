@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { Habit } from '@/types/habit';
-import { IconSymbol } from './IconSymbol';
 
 interface HabitsOverviewProps {
   habits: Habit[];
@@ -50,6 +49,16 @@ export function HabitsOverview({
     return completion?.isMissedCompletion === true;
   };
 
+  // Check if two consecutive days form a streak (both completed)
+  const isStreakConnection = (habitId: string, dayIndex: number): boolean => {
+    if (dayIndex >= last7Days.length - 1) {
+      return false;
+    }
+    const currentDay = last7Days[dayIndex];
+    const nextDay = last7Days[dayIndex + 1];
+    return hasCompletionOnDate(habitId, currentDay) && hasCompletionOnDate(habitId, nextDay);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>All Habits Overview</Text>
@@ -62,56 +71,20 @@ export function HabitsOverview({
 
         return (
           <View key={habit.id} style={styles.habitRow}>
-            {/* Left: Icon, Habit Name and Streaks */}
-            <View style={styles.leftSection}>
-              <View style={styles.nameRow}>
-                <IconSymbol
-                  ios_icon_name={habit.icon || 'star'}
-                  android_material_icon_name={habit.icon || 'star'}
-                  size={16}
-                  color="#ffffff"
-                />
-                <Text style={styles.habitName} numberOfLines={1}>
-                  {habit.name}
-                </Text>
-              </View>
-              <View style={styles.streakInfo}>
-                <Text style={styles.streakText}>{currentStreakText}</Text>
-                <Text style={styles.streakDivider}>•</Text>
-                <Text style={styles.streakText}>{bestStreakText}</Text>
-              </View>
-            </View>
-
-            {/* Right Section: Mini Calendar and Plus Button */}
-            <View style={styles.rightSection}>
-              {/* Mini 7-Day Calendar */}
-              <View style={styles.miniCalendar}>
-                {last7Days.map((date, index) => {
-                  const dayNum = date.getDate().toString();
-                  const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
-                  const isCompleted = hasCompletionOnDate(habit.id, date);
-                  const isMissed = isMissedCompletionOnDate(habit.id, date);
-                  
-                  return (
-                    <View key={index} style={styles.dayColumn}>
-                      <Text style={styles.dayName}>{dayName}</Text>
-                      <Text style={styles.dayNumber}>{dayNum}</Text>
-                      <View style={styles.dayIndicatorContainer}>
-                        <View
-                          style={[
-                            styles.dayIndicator,
-                            isCompleted && { backgroundColor: habit.color }
-                          ]}
-                        />
-                        {isMissed && (
-                          <View style={styles.miniPlasterBadge}>
-                            <Text style={styles.miniPlasterEmoji}>🩹</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
+            {/* Top Row: Icon, Full Habit Name, Streaks, Plus Button */}
+            <View style={styles.topRow}>
+              <View style={styles.leftSection}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.iconEmoji}>{habit.icon || '⭐'}</Text>
+                  <Text style={styles.habitName} numberOfLines={1}>
+                    {habit.name}
+                  </Text>
+                </View>
+                <View style={styles.streakInfo}>
+                  <Text style={styles.streakText}>{currentStreakText}</Text>
+                  <Text style={styles.streakDivider}>•</Text>
+                  <Text style={styles.streakText}>{bestStreakText}</Text>
+                </View>
               </View>
 
               {/* Plus Button */}
@@ -126,21 +99,47 @@ export function HabitsOverview({
                 disabled={isDailyGoalReached}
               >
                 {isDailyGoalReached ? (
-                  <IconSymbol
-                    ios_icon_name="checkmark"
-                    android_material_icon_name="check"
-                    size={20}
-                    color="#ffffff"
-                  />
+                  <Text style={styles.buttonText}>✓</Text>
                 ) : (
-                  <IconSymbol
-                    ios_icon_name="plus"
-                    android_material_icon_name="add"
-                    size={20}
-                    color="#ffffff"
-                  />
+                  <Text style={styles.buttonText}>+</Text>
                 )}
               </TouchableOpacity>
+            </View>
+
+            {/* Bottom Row: Mini 7-Day Calendar with Streak Lines */}
+            <View style={styles.calendarRow}>
+              {last7Days.map((date, index) => {
+                const dayNum = date.getDate().toString();
+                const dayName = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][date.getDay()];
+                const isCompleted = hasCompletionOnDate(habit.id, date);
+                const isMissed = isMissedCompletionOnDate(habit.id, date);
+                const showStreakLine = isStreakConnection(habit.id, index);
+                
+                return (
+                  <View key={index} style={styles.dayColumn}>
+                    <Text style={styles.dayName}>{dayName}</Text>
+                    <Text style={styles.dayNumber}>{dayNum}</Text>
+                    <View style={styles.dayIndicatorRow}>
+                      <View style={styles.dayIndicatorContainer}>
+                        <View
+                          style={[
+                            styles.dayIndicator,
+                            isCompleted && { backgroundColor: habit.color }
+                          ]}
+                        />
+                        {isMissed && (
+                          <View style={styles.miniPlasterBadge}>
+                            <Text style={styles.miniPlasterEmoji}>🩹</Text>
+                          </View>
+                        )}
+                      </View>
+                      {showStreakLine && (
+                        <View style={[styles.streakLine, { backgroundColor: habit.color }]} />
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           </View>
         );
@@ -167,13 +166,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   habitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    gap: 12,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   leftSection: {
     flex: 1,
@@ -185,6 +186,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 4,
+  },
+  iconEmoji: {
+    fontSize: 16,
   },
   habitName: {
     fontSize: 16,
@@ -205,18 +209,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.5)',
   },
-  rightSection: {
-    flexDirection: 'row',
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
   },
-  miniCalendar: {
+  addButtonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  calendarRow: {
     flexDirection: 'row',
     gap: 4,
+    paddingLeft: 22,
   },
   dayColumn: {
     alignItems: 'center',
-    width: 24,
+    width: 28,
   },
   dayName: {
     fontSize: 8,
@@ -228,6 +245,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     marginBottom: 3,
+  },
+  dayIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 16,
   },
   dayIndicatorContainer: {
     position: 'relative',
@@ -252,16 +274,10 @@ const styles = StyleSheet.create({
   miniPlasterEmoji: {
     fontSize: 8,
   },
-  addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.15)',
-    elevation: 3,
-  },
-  addButtonDisabled: {
-    opacity: 0.6,
+  streakLine: {
+    width: 12,
+    height: 3,
+    borderRadius: 1.5,
+    marginLeft: -4,
   },
 });

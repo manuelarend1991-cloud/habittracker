@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { Habit, HabitCompletion } from '@/types/habit';
 import { ConfirmModal } from './AddHabitModal';
@@ -104,6 +103,32 @@ export function MonthCalendarModal({
     return checkDate > today;
   };
 
+  // Check if there's a streak connection to the next day (horizontally)
+  const hasHorizontalStreakLine = (date: Date | null): boolean => {
+    if (!date) {
+      return false;
+    }
+    
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    // Check if both current and next day are completed
+    return hasCompletionOnDate(date) && hasCompletionOnDate(nextDay);
+  };
+
+  // Check if there's a streak connection to the day below (vertically, 7 days later)
+  const hasVerticalStreakLine = (date: Date | null): boolean => {
+    if (!date) {
+      return false;
+    }
+    
+    const nextWeekDay = new Date(date);
+    nextWeekDay.setDate(nextWeekDay.getDate() + 7);
+    
+    // Check if both current and next week's same day are completed
+    return hasCompletionOnDate(date) && hasCompletionOnDate(nextWeekDay);
+  };
+
   const handleDatePress = (date: Date) => {
     console.log('[MonthCalendarModal] User tapped date:', date.toISOString());
     
@@ -181,42 +206,55 @@ export function MonthCalendarModal({
     const future = isFutureDate(date);
     const isSelected = selectedDate !== null && selectedDate.toDateString() === date.toDateString();
     const dayNumber = date.getDate().toString();
+    const showHorizontalLine = hasHorizontalStreakLine(date);
+    const showVerticalLine = hasVerticalStreakLine(date);
 
     return (
-      <TouchableOpacity
-        key={`day-${index}`}
-        style={[
-          styles.dayCell,
-          completed && { backgroundColor: habit.color },
-          today && styles.todayCell,
-          future && styles.futureCell,
-          isSelected && styles.selectedCell,
-        ]}
-        onPress={() => handleDatePress(date)}
-        disabled={future || completed || isAdding}
-        activeOpacity={0.7}
-      >
-        {isAdding && isSelected ? (
-          <ActivityIndicator size="small" color="#ffffff" />
-        ) : (
-          <View style={styles.dayCellContent}>
-            <Text
-              style={[
-                styles.dayText,
-                completed && styles.completedDayText,
-                future && styles.futureDayText,
-              ]}
-            >
-              {dayNumber}
-            </Text>
-            {isMissed && (
-              <View style={styles.plasterBadge}>
-                <Text style={styles.plasterEmoji}>🩹</Text>
-              </View>
-            )}
-          </View>
+      <View key={`day-${index}`} style={styles.dayCellWrapper}>
+        <TouchableOpacity
+          style={[
+            styles.dayCell,
+            completed && { backgroundColor: habit.color },
+            today && styles.todayCell,
+            future && styles.futureCell,
+            isSelected && styles.selectedCell,
+          ]}
+          onPress={() => handleDatePress(date)}
+          disabled={future || completed || isAdding}
+          activeOpacity={0.7}
+        >
+          {isAdding && isSelected ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <View style={styles.dayCellContent}>
+              <Text
+                style={[
+                  styles.dayText,
+                  completed && styles.completedDayText,
+                  future && styles.futureDayText,
+                ]}
+              >
+                {dayNumber}
+              </Text>
+              {isMissed && (
+                <View style={styles.plasterBadge}>
+                  <Text style={styles.plasterEmoji}>🩹</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        {/* Horizontal streak line (to the right) */}
+        {showHorizontalLine && (
+          <View style={[styles.horizontalStreakLine, { backgroundColor: habit.color }]} />
         )}
-      </TouchableOpacity>
+        
+        {/* Vertical streak line (below) */}
+        {showVerticalLine && (
+          <View style={[styles.verticalStreakLine, { backgroundColor: habit.color }]} />
+        )}
+      </View>
     );
   };
 
@@ -235,33 +273,18 @@ export function MonthCalendarModal({
           <View style={styles.header}>
             <Text style={styles.title}>{habit.name}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <IconSymbol
-                ios_icon_name="xmark"
-                android_material_icon_name="close"
-                size={24}
-                color={colors.text}
-              />
+              <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           {/* Month Navigation */}
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-              <IconSymbol
-                ios_icon_name="chevron.left"
-                android_material_icon_name="chevron-left"
-                size={24}
-                color={colors.text}
-              />
+              <Text style={styles.navButtonText}>‹</Text>
             </TouchableOpacity>
             <Text style={styles.monthName}>{monthName}</Text>
             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-              <IconSymbol
-                ios_icon_name="chevron.right"
-                android_material_icon_name="chevron-right"
-                size={24}
-                color={colors.text}
-              />
+              <Text style={styles.navButtonText}>›</Text>
             </TouchableOpacity>
           </View>
 
@@ -292,14 +315,14 @@ export function MonthCalendarModal({
               <Text style={styles.legendText}>Today</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendBox, { backgroundColor: colors.backgroundAlt }]} />
-              <Text style={styles.legendText}>Available</Text>
+              <View style={[styles.legendLine, { backgroundColor: habit.color }]} />
+              <Text style={styles.legendText}>Streak</Text>
             </View>
           </View>
 
           {/* Instructions */}
           <Text style={styles.instructions}>
-            Tap any available day to add a missed completion
+            Tap any available day to add a missed completion. Lines connect consecutive completed days.
           </Text>
         </View>
 
@@ -346,6 +369,15 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    fontSize: 28,
+    color: colors.text,
+    fontWeight: '300',
   },
   monthNav: {
     flexDirection: 'row',
@@ -355,6 +387,15 @@ const styles = StyleSheet.create({
   },
   navButton: {
     padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navButtonText: {
+    fontSize: 32,
+    color: colors.text,
+    fontWeight: '300',
   },
   monthName: {
     fontSize: 18,
@@ -382,8 +423,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  dayCell: {
+  dayCellWrapper: {
     width: '14.28%',
+    position: 'relative',
+  },
+  dayCell: {
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -434,6 +478,24 @@ const styles = StyleSheet.create({
   futureDayText: {
     color: colors.textSecondary,
   },
+  horizontalStreakLine: {
+    position: 'absolute',
+    right: -2,
+    top: '50%',
+    width: 4,
+    height: 3,
+    borderRadius: 1.5,
+    transform: [{ translateY: -1.5 }],
+  },
+  verticalStreakLine: {
+    position: 'absolute',
+    left: '50%',
+    bottom: -2,
+    width: 3,
+    height: 4,
+    borderRadius: 1.5,
+    transform: [{ translateX: -1.5 }],
+  },
   legend: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -452,6 +514,11 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 4,
   },
+  legendLine: {
+    width: 16,
+    height: 3,
+    borderRadius: 1.5,
+  },
   legendText: {
     fontSize: 12,
     color: colors.textSecondary,
@@ -461,5 +528,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 12,
+    lineHeight: 16,
   },
 });
