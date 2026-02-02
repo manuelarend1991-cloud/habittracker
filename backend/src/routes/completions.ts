@@ -177,12 +177,26 @@ export function registerCompletionRoutes(app: App) {
         ),
       });
 
+      const completionsToday = todayCompletions.length;
+      const goalMet = completionsToday + 1 === habit.goalCount;
+      const goalAlreadyMet = completionsToday >= habit.goalCount;
+
+      // Calculate points only when goal is exactly met
+      let points = 0;
+      if (goalMet) {
+        // Goal is being met with this completion
+        const completedAtDate = new Date(completedAt);
+        const lastNonMissedDate = await getLastNonMissedCompletionDate(app, habitId);
+        points = calculatePointsSinceLastNonMissed(completedAtDate, lastNonMissedDate);
+      }
+
       // Allow multiple completions per day, but check if we're starting a new day streak
+      // Streak is based on whether the goal was met yesterday
       let newStreak = habit.currentStreak;
       let streakChanged = false;
 
-      if (todayCompletions.length === 0) {
-        // This is the first completion of the day, check if we're continuing a streak
+      if (completionsToday === 0) {
+        // This is the first completion of the day, check if yesterday's goal was met
         const yesterday = new Date(completedAt);
         yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
@@ -192,7 +206,7 @@ export function registerCompletionRoutes(app: App) {
         const yesterdayEnd = new Date(yesterdayStart);
         yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1);
 
-        const yesterdayCompletion = await app.db.query.habitCompletions.findFirst({
+        const yesterdayCompletions = await app.db.query.habitCompletions.findMany({
           where: and(
             eq(schema.habitCompletions.habitId, habitId),
             gte(schema.habitCompletions.completedAt, yesterdayStart),
@@ -200,18 +214,14 @@ export function registerCompletionRoutes(app: App) {
           ),
         });
 
-        if (yesterdayCompletion) {
+        // Streak continues if yesterday's goal was met (goalCount completions)
+        if (yesterdayCompletions.length >= habit.goalCount) {
           newStreak = habit.currentStreak + 1;
         } else {
           newStreak = 1;
         }
         streakChanged = true;
       }
-
-      // Calculate points based on days since last non-missed completion
-      const completedAtDate = new Date(completedAt);
-      const lastNonMissedDate = await getLastNonMissedCompletionDate(app, habitId);
-      const points = calculatePointsSinceLastNonMissed(completedAtDate, lastNonMissedDate);
 
       // Record completion
       const [completion] = await app.db.insert(schema.habitCompletions).values({
@@ -222,12 +232,13 @@ export function registerCompletionRoutes(app: App) {
       }).returning();
 
       // Update habit with new streak and total points
+      // Only update streak if we're at the first completion of the day or if goal just became met
       const maxStreak = streakChanged ? Math.max(habit.maxStreak, newStreak) : habit.maxStreak;
       const totalPoints = habit.totalPoints + points;
 
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
-          currentStreak: newStreak,
+          currentStreak: streakChanged ? newStreak : habit.currentStreak,
           maxStreak,
           totalPoints,
           pointStreakReset: false,
@@ -236,15 +247,17 @@ export function registerCompletionRoutes(app: App) {
         .where(eq(schema.habits.id, habitId))
         .returning();
 
-      // Check for achievement unlocks
-      await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
+      // Check for achievement unlocks (only if points were awarded)
+      if (points > 0) {
+        await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
+      }
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, pointsEarned: points, streak: newStreak },
+        { userId: session.user.id, habitId, completionId: completion.id, completionsToday, goalCount: habit.goalCount, goalMet, pointsEarned: points, streak: updatedHabit.currentStreak },
         'Habit completion recorded'
       );
 
-      return { completion, updatedHabit, pointsEarned: points };
+      return { completion, updatedHabit, pointsEarned: points, completionsToday: completionsToday + 1, goalCount: habit.goalCount, goalMet };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record completion');
       throw error;
