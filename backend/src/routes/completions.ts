@@ -129,7 +129,7 @@ export function registerCompletionRoutes(app: App) {
 
       if (existingCompletion) {
         app.logger.warn({ userId: session.user.id, habitId }, 'Completion already exists for this day');
-        return reply.status(400).send({ error: 'Already completed today' });
+        return reply.status(409).send({ error: "You've completed this task, already!" });
       }
 
       // Calculate streak
@@ -193,6 +193,187 @@ export function registerCompletionRoutes(app: App) {
       return { completion, updatedHabit };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record completion');
+      throw error;
+    }
+  });
+
+  // POST /api/habits/:habitId/complete-past - Record a completion for a past date
+  app.fastify.post('/api/habits/:habitId/complete-past', async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<any> => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const { habitId } = request.params as { habitId: string };
+    const body = request.body as { completedAt: string };
+
+    app.logger.info({ userId: session.user.id, habitId, body }, 'Recording past habit completion');
+
+    try {
+      // Validate completedAt is provided
+      if (!body.completedAt) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'Missing completedAt in request');
+        return reply.status(400).send({ error: 'completedAt is required' });
+      }
+
+      const completedAt = new Date(body.completedAt);
+
+      // Validate date is valid
+      if (isNaN(completedAt.getTime())) {
+        app.logger.warn({ userId: session.user.id, habitId, completedAt: body.completedAt }, 'Invalid date format');
+        return reply.status(400).send({ error: 'Invalid date format' });
+      }
+
+      // Validate date is in the past
+      const now = new Date();
+      const today = new Date(now);
+      today.setUTCHours(23, 59, 59, 999);
+
+      if (completedAt > today) {
+        app.logger.warn({ userId: session.user.id, habitId, completedAt }, 'Attempted to add future completion');
+        return reply.status(400).send({ error: 'Date must be in the past' });
+      }
+
+      // Get the habit
+      const habit = await app.db.query.habits.findFirst({
+        where: eq(schema.habits.id, habitId),
+      });
+
+      if (!habit) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'Habit not found');
+        return reply.status(404).send({ error: 'Habit not found' });
+      }
+
+      if (habit.userId !== session.user.id) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'Unauthorized past completion attempt');
+        return reply.status(403).send({ error: 'Unauthorized' });
+      }
+
+      // Check for existing completion on the same day
+      const dayStart = new Date(completedAt);
+      dayStart.setUTCHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(dayStart);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+      const existingCompletion = await app.db.query.habitCompletions.findFirst({
+        where: and(
+          eq(schema.habitCompletions.habitId, habitId),
+          gte(schema.habitCompletions.completedAt, dayStart),
+          lt(schema.habitCompletions.completedAt, dayEnd)
+        ),
+      });
+
+      if (existingCompletion) {
+        app.logger.warn({ userId: session.user.id, habitId, completedAt }, 'Completion already exists for this date');
+        return reply.status(409).send({ error: 'Completion already exists for this date' });
+      }
+
+      // Get all completions to recalculate streaks
+      const allCompletions = await app.db
+        .select()
+        .from(schema.habitCompletions)
+        .where(eq(schema.habitCompletions.habitId, habitId))
+        .orderBy(schema.habitCompletions.completedAt);
+
+      // Calculate points based on streak before this completion
+      let streakBeforeCompletion = 1;
+      for (let i = allCompletions.length - 1; i >= 0; i--) {
+        const current = new Date(allCompletions[i].completedAt);
+        const currentDayStart = new Date(current);
+        currentDayStart.setUTCHours(0, 0, 0, 0);
+
+        if (currentDayStart.getTime() === dayStart.getTime()) {
+          // Same day - shouldn't happen due to above check, but handle it
+          return reply.status(409).send({ error: 'Completion already exists for this date' });
+        }
+
+        if (currentDayStart.getTime() < dayStart.getTime()) {
+          // This is before our new completion, count the current streak
+          streakBeforeCompletion = 1;
+          let checkDate = new Date(currentDayStart);
+
+          for (let j = i + 1; j < allCompletions.length; j++) {
+            const checkCompletion = new Date(allCompletions[j].completedAt);
+            const checkDayStart = new Date(checkCompletion);
+            checkDayStart.setUTCHours(0, 0, 0, 0);
+
+            const daysDiff = Math.floor((checkDayStart.getTime() - checkDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysDiff === 1) {
+              streakBeforeCompletion++;
+              checkDate = checkDayStart;
+            } else {
+              break;
+            }
+          }
+          break;
+        }
+      }
+
+      const points = calculatePoints(streakBeforeCompletion);
+
+      // Record completion
+      const [completion] = await app.db.insert(schema.habitCompletions).values({
+        habitId,
+        userId: session.user.id,
+        completedAt,
+        points,
+      }).returning();
+
+      // Recalculate all streaks from scratch
+      const updatedCompletions = await app.db
+        .select()
+        .from(schema.habitCompletions)
+        .where(eq(schema.habitCompletions.habitId, habitId))
+        .orderBy(schema.habitCompletions.completedAt);
+
+      let currentStreak = 0;
+      let maxStreak = habit.maxStreak;
+      let totalPoints = 0;
+
+      if (updatedCompletions.length > 0) {
+        currentStreak = 1;
+        totalPoints = updatedCompletions[0].points;
+
+        for (let i = 1; i < updatedCompletions.length; i++) {
+          const current = new Date(updatedCompletions[i].completedAt);
+          const previous = new Date(updatedCompletions[i - 1].completedAt);
+
+          const daysDiff = Math.floor((current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 1) {
+            currentStreak++;
+          } else {
+            currentStreak = 1;
+          }
+
+          maxStreak = Math.max(maxStreak, currentStreak);
+          totalPoints += updatedCompletions[i].points;
+        }
+      }
+
+      // Update habit with recalculated streaks and points
+      const [updatedHabit] = await app.db.update(schema.habits)
+        .set({
+          currentStreak,
+          maxStreak,
+          totalPoints,
+        })
+        .where(eq(schema.habits.id, habitId))
+        .returning();
+
+      // Check for achievement unlocks
+      await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
+
+      app.logger.info(
+        { userId: session.user.id, habitId, completionId: completion.id, points, streak: currentStreak },
+        'Past habit completion recorded and streaks recalculated'
+      );
+
+      return { completion, updatedHabit };
+    } catch (error) {
+      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record past completion');
       throw error;
     }
   });
