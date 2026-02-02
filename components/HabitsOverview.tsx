@@ -132,10 +132,10 @@ export function HabitsOverview({
                             <Text style={styles.miniPlasterEmoji}>🩹</Text>
                           </View>
                         )}
+                        {showStreakLine && (
+                          <View style={[styles.streakLine, { backgroundColor: habit.color }]} />
+                        )}
                       </View>
-                      {showStreakLine && (
-                        <View style={[styles.streakLine, { backgroundColor: habit.color }]} />
-                      )}
                     </View>
                   </View>
                 );
@@ -250,11 +250,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 16,
+    overflow: 'visible',
   },
   dayIndicatorContainer: {
     position: 'relative',
     width: 16,
     height: 16,
+    overflow: 'visible',
   },
   dayIndicator: {
     width: 16,
@@ -275,9 +277,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
   },
   streakLine: {
-    width: 12,
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 32, // Width should be: gap (4px) + next indicator width (28px) = 32px to reach center of next indicator
     height: 3,
     borderRadius: 1.5,
-    marginLeft: -4,
+    transform: [{ translateY: -1.5 }],
   },
 });

@@ -480,9 +480,9 @@ const styles = StyleSheet.create({
   },
   horizontalStreakLine: {
     position: 'absolute',
-    right: -2,
+    left: '50%',
     top: '50%',
-    width: 4,
+    width: '50%',
     height: 3,
     borderRadius: 1.5,
     transform: [{ translateY: -1.5 }],
@@ -490,9 +490,9 @@ const styles = StyleSheet.create({
   verticalStreakLine: {
     position: 'absolute',
     left: '50%',
-    bottom: -2,
+    top: '50%',
     width: 3,
-    height: 4,
+    height: '50%',
     borderRadius: 1.5,
     transform: [{ translateX: -1.5 }],
   },

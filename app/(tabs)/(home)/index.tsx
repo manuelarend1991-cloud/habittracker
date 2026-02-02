@@ -176,8 +176,17 @@ export default function HomeScreen() {
       return;
     }
 
+    // IMMEDIATE CHECK: Verify user has enough points BEFORE attempting to add
     const currentPoints = dashboard?.totalPoints || 0;
-    console.log('[HomeScreen] Adding past completion for date:', date, 'Current total points:', currentPoints);
+    console.log('[HomeScreen] Checking points before adding past completion. Current total points:', currentPoints);
+    
+    if (currentPoints < 10) {
+      console.log('[HomeScreen] Insufficient points detected immediately:', currentPoints, '< 10');
+      showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
+      return; // Stop here, don't make the API call
+    }
+
+    console.log('[HomeScreen] User has sufficient points, proceeding with adding past completion for date:', date);
     
     try {
       const response = await addPastCompletion(selectedHabit.id, date);
