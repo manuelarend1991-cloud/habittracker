@@ -8,12 +8,13 @@ function calculatePoints(streakLength: number): number {
   return Math.max(1, streakLength);
 }
 
-// Calculate points based on days since last plaster within current streak, or since streak start if no plaster
-async function calculatePointsSinceLastPlasterOrStreakStart(
+// Calculate the current day number in the streak
+// Points = current day number in streak (1, 2, 3, 4...)
+// Resets to 1 after a plaster, continues after any other date
+async function calculateCurrentStreakDayNumber(
   app: App,
   completionDate: Date,
-  habitId: string,
-  goalCount: number
+  habitId: string
 ): Promise<number> {
   // Get all completions for this habit, ordered chronologically
   const allCompletions = await app.db
@@ -27,80 +28,64 @@ async function calculatePointsSinceLastPlasterOrStreakStart(
     return 1;
   }
 
-  // Find the current streak by working backwards from today
-  // A streak is a series of consecutive days where the goal was met (including plasters)
+  // Normalize completion date to start of day
+  const completionDay = new Date(completionDate);
+  completionDay.setUTCHours(0, 0, 0, 0);
 
-  // Group completions by day to check if goal was met each day
-  const completionsByDay: { [dateKey: string]: any[] } = {};
-  allCompletions.forEach(comp => {
-    const date = new Date(comp.completedAt);
-    const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    if (!completionsByDay[dateKey]) {
-      completionsByDay[dateKey] = [];
-    }
-    completionsByDay[dateKey].push(comp);
-  });
-
-  // Work backwards from today to find streak boundaries
-  const today = new Date(completionDate);
-  today.setUTCHours(0, 0, 0, 0);
-
-  let streakStart: Date | null = null;
-  let currentDate = new Date(today);
-
-  // Go backwards to find where streak started
-  while (true) {
-    const dateKey = currentDate.toISOString().split('T')[0];
-    const dayCompletions = completionsByDay[dateKey] || [];
-
-    // If this day has goal-count completions (including plasters), it's part of the streak
-    if (dayCompletions.length >= goalCount) {
-      streakStart = new Date(currentDate);
-      currentDate.setUTCDate(currentDate.getUTCDate() - 1);
-    } else {
-      // Hit a day without enough completions, streak started after this
-      break;
-    }
-
-    // Safety check: don't go back more than 1000 days
-    if (currentDate < new Date(today.getTime() - 1000 * 24 * 60 * 60 * 1000)) {
-      break;
-    }
-  }
-
-  // If no streak start found, use the date of the first completion
-  if (streakStart === null && allCompletions.length > 0) {
-    streakStart = new Date(allCompletions[0].completedAt);
-    streakStart.setUTCHours(0, 0, 0, 0);
-  }
-
-  // Now find the most recent plaster (missed completion) within the current streak
-  let lastPlasterDate: Date | null = null;
+  // Find the most recent plaster before the completion date
+  let lastPlasterDay: Date | null = null;
   for (let i = allCompletions.length - 1; i >= 0; i--) {
     const comp = allCompletions[i];
-    const compDate = new Date(comp.completedAt);
-    compDate.setUTCHours(0, 0, 0, 0);
+    const compDay = new Date(comp.completedAt);
+    compDay.setUTCHours(0, 0, 0, 0);
 
-    // Check if this plaster is within the current streak (after streakStart)
-    if (comp.isMissedCompletion && streakStart && compDate >= streakStart) {
-      lastPlasterDate = new Date(comp.completedAt);
+    if (comp.isMissedCompletion && compDay < completionDay) {
+      lastPlasterDay = compDay;
       break;
     }
   }
 
-  // Calculate days
-  let pointsToAward = 1;
-  if (lastPlasterDate) {
-    // Days since the last plaster
-    const daysDiff = Math.floor((completionDate.getTime() - lastPlasterDate.getTime()) / (1000 * 60 * 60 * 24));
-    pointsToAward = Math.max(1, daysDiff);
-  } else if (streakStart) {
-    // Days since the first day of the current streak
-    const daysDiff = Math.floor((completionDate.getTime() - streakStart.getTime()) / (1000 * 60 * 60 * 24));
-    pointsToAward = Math.max(1, daysDiff);
+  // Reference date for counting: either last plaster or first completion
+  let referenceDay: Date;
+  if (lastPlasterDay) {
+    referenceDay = new Date(lastPlasterDay);
+  } else {
+    // Use the first completion date as reference
+    const firstComp = allCompletions[0];
+    referenceDay = new Date(firstComp.completedAt);
+    referenceDay.setUTCHours(0, 0, 0, 0);
   }
 
-  return pointsToAward;
+  // Check if there's a gap in the streak (missing day with no plaster)
+  // Work backwards from completion day to find the last day with a completion
+  let lastCompletionDay: Date | null = null;
+  for (let i = allCompletions.length - 1; i >= 0; i--) {
+    const comp = allCompletions[i];
+    const compDay = new Date(comp.completedAt);
+    compDay.setUTCHours(0, 0, 0, 0);
+
+    if (compDay < completionDay) {
+      lastCompletionDay = compDay;
+      break;
+    }
+  }
+
+  // If there's a gap of more than 1 day without a plaster, the streak resets
+  if (lastCompletionDay && !lastPlasterDay) {
+    const daysSinceLastCompletion = Math.floor((completionDay.getTime() - lastCompletionDay.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceLastCompletion > 1) {
+      // Gap detected, start new streak
+      return 1;
+    }
+  }
+
+  // Calculate days between reference and completion day
+  const daysDiff = Math.floor((completionDay.getTime() - referenceDay.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Day number is the difference + 1 (if reference is day 0, completion day is day 1)
+  const dayNumber = daysDiff + 1;
+
+  return Math.max(1, dayNumber);
 }
 
 // Check if any completions in the habit are marked as missed
@@ -150,8 +135,8 @@ async function getLastMissedCompletionDate(app: App, habitId: string): Promise<D
 export async function calculateNextCompletionPoints(
   app: App,
   habitId: string,
-  goalCount: number,
-  completionsToday: number
+  completionsToday: number,
+  goalCount: number
 ): Promise<number> {
   if (completionsToday >= goalCount) {
     // Goal already met today, no more points
@@ -160,8 +145,8 @@ export async function calculateNextCompletionPoints(
 
   // Goal not yet met, calculate what points would be earned when goal is met
   const today = new Date();
-  const points = await calculatePointsSinceLastPlasterOrStreakStart(app, today, habitId, goalCount);
-  return points;
+  const dayNumber = await calculateCurrentStreakDayNumber(app, today, habitId);
+  return dayNumber;
 }
 
 async function checkAndUnlockAchievements(
@@ -291,7 +276,11 @@ export function registerCompletionRoutes(app: App) {
       if (goalMet) {
         // Goal is being met with this completion
         const completedAtDate = new Date(completedAt);
-        points = await calculatePointsSinceLastPlasterOrStreakStart(app, completedAtDate, habitId, habit.goalCount);
+        points = await calculateCurrentStreakDayNumber(app, completedAtDate, habitId);
+        app.logger.info(
+          { userId: session.user.id, habitId, streakDayNumber: points, completionsToday, goalCount: habit.goalCount },
+          'Points calculated based on current streak day number'
+        );
       }
 
       // Allow multiple completions per day, but check if we're starting a new day streak

@@ -64,8 +64,8 @@ export function registerDashboardRoutes(app: App) {
         const nextCompletionPoints = await calculateNextCompletionPoints(
           app,
           habit.id,
-          habit.goalCount,
-          completionsToday
+          completionsToday,
+          habit.goalCount
         );
 
         return {
