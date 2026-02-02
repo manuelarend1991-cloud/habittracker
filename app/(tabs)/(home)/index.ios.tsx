@@ -278,6 +278,11 @@ export default function HomeScreen() {
     }
   };
 
+  const handleShowAllBadges = () => {
+    console.log('[HomeScreen] User tapped Show all badges button');
+    router.push('/badges');
+  };
+
   const recentCompletionsMap: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   const nextCompletionPointsMap: Record<string, number> = {};
@@ -374,31 +379,46 @@ export default function HomeScreen() {
         />
 
         <View style={styles.summaryCard}>
-          <View style={styles.summaryItem}>
-            <IconSymbol
-              ios_icon_name="star.fill"
-              android_material_icon_name="star"
-              size={24}
-              color={colors.accent}
-            />
-            <View style={styles.summaryTextContainer}>
-              <Text style={styles.summaryValue}>{totalPointsText}</Text>
-              <Text style={styles.summaryLabel}>Total Points</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <IconSymbol
+                ios_icon_name="star.fill"
+                android_material_icon_name="star"
+                size={24}
+                color={colors.accent}
+              />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryValue}>{totalPointsText}</Text>
+                <Text style={styles.summaryLabel}>Total Points</Text>
+              </View>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <IconSymbol
+                ios_icon_name="trophy.fill"
+                android_material_icon_name="emoji-events"
+                size={24}
+                color={colors.success}
+              />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryValue}>{recentBadgesText}</Text>
+                <Text style={styles.summaryLabel}>Recent Badges</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
+          <TouchableOpacity
+            style={styles.showAllBadgesButton}
+            onPress={handleShowAllBadges}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.showAllBadgesText}>Show all badges</Text>
             <IconSymbol
-              ios_icon_name="trophy.fill"
-              android_material_icon_name="emoji-events"
-              size={24}
-              color={colors.success}
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={16}
+              color={colors.primary}
             />
-            <View style={styles.summaryTextContainer}>
-              <Text style={styles.summaryValue}>{recentBadgesText}</Text>
-              <Text style={styles.summaryLabel}>Recent Badges</Text>
-            </View>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.infoButton}
             onPress={() => {
@@ -722,14 +742,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
     elevation: 2,
     position: 'relative',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginBottom: 16,
   },
   infoButton: {
     position: 'absolute',
@@ -758,6 +781,23 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: colors.border,
+  },
+  showAllBadgesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  showAllBadgesText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
   },
   addHabitBox: {
     backgroundColor: colors.card,
