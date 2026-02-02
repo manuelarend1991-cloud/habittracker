@@ -43,9 +43,17 @@ export function HabitCard({
     <View
       style={[styles.card, { borderLeftColor: habit.color, borderLeftWidth: 4 }]}
     >
-      {/* Header: Habit Name and Settings Icon */}
+      {/* Header: Icon, Habit Name and Settings Icon */}
       <View style={styles.header}>
-        <Text style={styles.habitName}>{habit.name}</Text>
+        <View style={styles.nameContainer}>
+          <IconSymbol
+            ios_icon_name={habit.icon || 'star'}
+            android_material_icon_name={habit.icon || 'star'}
+            size={18}
+            color={habit.color}
+          />
+          <Text style={styles.habitName}>{habit.name}</Text>
+        </View>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onSettingsPress}
@@ -183,6 +191,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   habitName: {
     fontSize: 18,

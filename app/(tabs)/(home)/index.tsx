@@ -213,11 +213,12 @@ export default function HomeScreen() {
     name: string,
     color: string,
     goalCount: number,
-    goalPeriodDays: number
+    goalPeriodDays: number,
+    icon: string
   ) => {
-    console.log('[HomeScreen] Creating new habit:', { name, color, goalCount, goalPeriodDays });
+    console.log('[HomeScreen] Creating new habit:', { name, color, goalCount, goalPeriodDays, icon });
     try {
-      await createHabit(name, color, goalCount, goalPeriodDays);
+      await createHabit(name, color, goalCount, goalPeriodDays, icon);
     } catch (err) {
       console.error('[HomeScreen] Failed to create habit:', err);
       throw err;
@@ -235,11 +236,12 @@ export default function HomeScreen() {
     name: string,
     color: string,
     goalCount: number,
-    goalPeriodDays: number
+    goalPeriodDays: number,
+    icon: string
   ) => {
     console.log('[HomeScreen] Updating habit:', habitId);
     try {
-      await updateHabit(habitId, name, color, goalCount, goalPeriodDays);
+      await updateHabit(habitId, name, color, goalCount, goalPeriodDays, icon);
       showAlert('Success!', 'Habit updated successfully', 'success');
     } catch (err) {
       console.error('[HomeScreen] Failed to update habit:', err);

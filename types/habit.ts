@@ -3,6 +3,7 @@ export interface Habit {
   id: string;
   name: string;
   color: string;
+  icon: string;
   goalCount: number;
   goalPeriodDays: number;
   currentStreak: number;
@@ -35,6 +36,7 @@ export interface DashboardData {
     id: string;
     name: string;
     color: string;
+    icon: string;
     currentStreak: number;
     maxStreak: number;
     recentCompletions: HabitCompletion[];

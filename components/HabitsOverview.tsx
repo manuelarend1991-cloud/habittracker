@@ -51,11 +51,19 @@ export function HabitsOverview({
 
         return (
           <View key={habit.id} style={styles.habitRow}>
-            {/* Left: Habit Name and Streaks */}
+            {/* Left: Icon, Habit Name and Streaks */}
             <View style={styles.leftSection}>
-              <Text style={styles.habitName} numberOfLines={1}>
-                {habit.name}
-              </Text>
+              <View style={styles.nameRow}>
+                <IconSymbol
+                  ios_icon_name={habit.icon || 'star'}
+                  android_material_icon_name={habit.icon || 'star'}
+                  size={16}
+                  color="#ffffff"
+                />
+                <Text style={styles.habitName} numberOfLines={1}>
+                  {habit.name}
+                </Text>
+              </View>
               <View style={styles.streakInfo}>
                 <Text style={styles.streakText}>{currentStreakText}</Text>
                 <Text style={styles.streakDivider}>•</Text>
@@ -153,11 +161,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginRight: 12,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   habitName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 4,
+    flex: 1,
   },
   streakInfo: {
     flexDirection: 'row',

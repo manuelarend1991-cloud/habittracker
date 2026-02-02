@@ -133,14 +133,15 @@ export function useHabits() {
     }
   }, [fetchDashboard]);
 
-  const createHabit = useCallback(async (name: string, color: string, goalCount: number, goalPeriodDays: number) => {
-    console.log('[useHabits] Creating habit:', { name, color, goalCount, goalPeriodDays });
+  const createHabit = useCallback(async (name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => {
+    console.log('[useHabits] Creating habit:', { name, color, goalCount, goalPeriodDays, icon });
     try {
       const newHabit = await authenticatedPost<Habit>('/api/habits', {
         name,
         color,
         goalCount,
         goalPeriodDays,
+        icon,
       });
       console.log('[useHabits] Habit created:', newHabit);
       
@@ -153,12 +154,13 @@ export function useHabits() {
     }
   }, [fetchDashboard]);
 
-  const updateHabit = useCallback(async (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number) => {
-    console.log('[useHabits] Updating habit:', habitId, { name, color, goalCount, goalPeriodDays });
+  const updateHabit = useCallback(async (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => {
+    console.log('[useHabits] Updating habit:', habitId, { name, color, goalCount, goalPeriodDays, icon });
     try {
       const updatedHabit = await authenticatedPut<Habit>(`/api/habits/${habitId}`, {
         name,
         color,
+        icon,
         goalCount,
         goalPeriodDays,
       });

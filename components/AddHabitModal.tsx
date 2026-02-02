@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { colors, habitColors } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
+import { DEFAULT_HABIT_ICONS } from '@/constants/habitIcons';
 
 // Reusable Confirmation Modal Component
 interface ConfirmModalProps {
@@ -136,12 +137,13 @@ const confirmStyles = StyleSheet.create({
 interface AddHabitModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (name: string, color: string, goalCount: number, goalPeriodDays: number) => Promise<void>;
+  onAdd: (name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => Promise<void>;
 }
 
 export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(habitColors[0]);
+  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_HABIT_ICONS[0].name);
   const [goalCount, setGoalCount] = useState('1');
   const [goalPeriodDays, setGoalPeriodDays] = useState('7');
   const [loading, setLoading] = useState(false);
@@ -165,13 +167,14 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
     try {
       setLoading(true);
       setError(null);
-      await onAdd(name.trim(), selectedColor, count, period);
+      await onAdd(name.trim(), selectedColor, count, period, selectedIcon);
       
       // Reset form
       setName('');
       setGoalCount('1');
       setGoalPeriodDays('7');
       setSelectedColor(habitColors[0]);
+      setSelectedIcon(DEFAULT_HABIT_ICONS[0].name);
       onClose();
     } catch (err) {
       console.error('[AddHabitModal] Error adding habit:', err);
@@ -218,6 +221,36 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
               placeholder="e.g., Morning Exercise"
               placeholderTextColor={colors.textSecondary}
             />
+
+            <Text style={styles.label}>Icon</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.iconScrollView}
+              contentContainerStyle={styles.iconScrollContent}
+            >
+              {DEFAULT_HABIT_ICONS.map((icon) => {
+                const isSelected = icon.name === selectedIcon;
+                return (
+                  <TouchableOpacity
+                    key={icon.name}
+                    style={[
+                      styles.iconOption,
+                      isSelected && styles.iconOptionSelected,
+                      { borderColor: selectedColor }
+                    ]}
+                    onPress={() => setSelectedIcon(icon.name)}
+                  >
+                    <IconSymbol
+                      ios_icon_name={icon.name}
+                      android_material_icon_name={icon.name}
+                      size={28}
+                      color={isSelected ? selectedColor : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             <Text style={styles.label}>Color</Text>
             <View style={styles.colorGrid}>
@@ -345,6 +378,27 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  iconScrollView: {
+    marginBottom: 8,
+  },
+  iconScrollContent: {
+    gap: 12,
+    paddingRight: 12,
+  },
+  iconOption: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.backgroundAlt,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  iconOptionSelected: {
+    borderWidth: 3,
+    backgroundColor: colors.card,
   },
   colorGrid: {
     flexDirection: 'row',

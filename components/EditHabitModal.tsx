@@ -14,17 +14,19 @@ import {
 import { colors, habitColors } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
 import { Habit } from '@/types/habit';
+import { DEFAULT_HABIT_ICONS } from '@/constants/habitIcons';
 
 interface EditHabitModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number) => Promise<void>;
+  onSave: (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => Promise<void>;
   habit: Habit | null;
 }
 
 export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(habitColors[0]);
+  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_HABIT_ICONS[0].name);
   const [goalCount, setGoalCount] = useState('1');
   const [goalPeriodDays, setGoalPeriodDays] = useState('7');
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,7 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
     if (habit) {
       setName(habit.name);
       setSelectedColor(habit.color);
+      setSelectedIcon(habit.icon || DEFAULT_HABIT_ICONS[0].name);
       setGoalCount(habit.goalCount.toString());
       setGoalPeriodDays(habit.goalPeriodDays.toString());
       setError(null);
@@ -63,7 +66,7 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
     try {
       setLoading(true);
       setError(null);
-      await onSave(habit.id, name.trim(), selectedColor, count, period);
+      await onSave(habit.id, name.trim(), selectedColor, count, period, selectedIcon);
       onClose();
     } catch (err) {
       console.error('[EditHabitModal] Error updating habit:', err);
@@ -110,6 +113,36 @@ export function EditHabitModal({ visible, onClose, onSave, habit }: EditHabitMod
               placeholder="e.g., Morning Exercise"
               placeholderTextColor={colors.textSecondary}
             />
+
+            <Text style={styles.label}>Icon</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.iconScrollView}
+              contentContainerStyle={styles.iconScrollContent}
+            >
+              {DEFAULT_HABIT_ICONS.map((icon) => {
+                const isSelected = icon.name === selectedIcon;
+                return (
+                  <TouchableOpacity
+                    key={icon.name}
+                    style={[
+                      styles.iconOption,
+                      isSelected && styles.iconOptionSelected,
+                      { borderColor: selectedColor }
+                    ]}
+                    onPress={() => setSelectedIcon(icon.name)}
+                  >
+                    <IconSymbol
+                      ios_icon_name={icon.name}
+                      android_material_icon_name={icon.name}
+                      size={28}
+                      color={isSelected ? selectedColor : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             <Text style={styles.label}>Color</Text>
             <View style={styles.colorGrid}>
@@ -237,6 +270,27 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  iconScrollView: {
+    marginBottom: 8,
+  },
+  iconScrollContent: {
+    gap: 12,
+    paddingRight: 12,
+  },
+  iconOption: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.backgroundAlt,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  iconOptionSelected: {
+    borderWidth: 3,
+    backgroundColor: colors.card,
   },
   colorGrid: {
     flexDirection: 'row',
