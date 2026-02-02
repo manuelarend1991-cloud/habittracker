@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, integer, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { user } from './auth-schema.js';
 
@@ -13,6 +13,7 @@ export const habits = pgTable('habits', {
   currentStreak: integer('current_streak').default(0).notNull(),
   maxStreak: integer('max_streak').default(0).notNull(),
   totalPoints: integer('total_points').default(0).notNull(),
+  pointStreakReset: boolean('point_streak_reset').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

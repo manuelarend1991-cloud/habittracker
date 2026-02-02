@@ -1,0 +1,1 @@
+ALTER TABLE "habits" ADD COLUMN "point_streak_reset" boolean DEFAULT false NOT NULL;

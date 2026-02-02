@@ -3,10 +3,9 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, gte, lt, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 
-const BASE_POINTS = 10;
-
-function calculatePoints(currentStreak: number): number {
-  return Math.floor(BASE_POINTS * (1 + currentStreak / 10));
+// Calculate points based on streak length (points = streak length, minimum 1)
+function calculatePoints(streakLength: number): number {
+  return Math.max(1, streakLength);
 }
 
 async function checkAndUnlockAchievements(
@@ -158,7 +157,16 @@ export function registerCompletionRoutes(app: App) {
         streakChanged = true;
       }
 
-      const points = calculatePoints(newStreak - 1); // Calculate based on streak before this completion
+      // Calculate points based on whether pointStreakReset is set
+      let points: number;
+      let pointStreakReset = false;
+      if (habit.pointStreakReset) {
+        // If streak was reset by a missed completion, award 1 point
+        points = 1;
+      } else {
+        // Otherwise, award points based on streak length before this completion
+        points = calculatePoints(newStreak - 1);
+      }
 
       // Record completion
       const [completion] = await app.db.insert(schema.habitCompletions).values({
@@ -177,6 +185,7 @@ export function registerCompletionRoutes(app: App) {
           currentStreak: newStreak,
           maxStreak,
           totalPoints,
+          pointStreakReset: false, // Reset the flag when completing
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
@@ -185,11 +194,11 @@ export function registerCompletionRoutes(app: App) {
       await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, points, streak: newStreak },
+        { userId: session.user.id, habitId, completionId: completion.id, pointsEarned: points, streak: newStreak },
         'Habit completion recorded'
       );
 
-      return { completion, updatedHabit };
+      return { completion, updatedHabit, pointsEarned: points };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record completion');
       throw error;
@@ -249,6 +258,13 @@ export function registerCompletionRoutes(app: App) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
+      // Check if user has enough points (fixed cost of 10)
+      const PAST_COMPLETION_COST = 10;
+      if (habit.totalPoints < PAST_COMPLETION_COST) {
+        app.logger.warn({ userId: session.user.id, habitId, totalPoints: habit.totalPoints }, 'Insufficient points for past completion');
+        return reply.status(400).send({ error: 'Not enough points for this!' });
+      }
+
       // Check for existing completion on the same day
       const dayStart = new Date(completedAt);
       dayStart.setUTCHours(0, 0, 0, 0);
@@ -269,59 +285,16 @@ export function registerCompletionRoutes(app: App) {
         return reply.status(409).send({ error: 'Completion already exists for this date' });
       }
 
-      // Get all completions to recalculate streaks
-      const allCompletions = await app.db
-        .select()
-        .from(schema.habitCompletions)
-        .where(eq(schema.habitCompletions.habitId, habitId))
-        .orderBy(schema.habitCompletions.completedAt);
-
-      // Calculate points based on streak before this completion
-      let streakBeforeCompletion = 1;
-      for (let i = allCompletions.length - 1; i >= 0; i--) {
-        const current = new Date(allCompletions[i].completedAt);
-        const currentDayStart = new Date(current);
-        currentDayStart.setUTCHours(0, 0, 0, 0);
-
-        if (currentDayStart.getTime() === dayStart.getTime()) {
-          // Same day - shouldn't happen due to above check, but handle it
-          return reply.status(409).send({ error: 'Completion already exists for this date' });
-        }
-
-        if (currentDayStart.getTime() < dayStart.getTime()) {
-          // This is before our new completion, count the current streak
-          streakBeforeCompletion = 1;
-          let checkDate = new Date(currentDayStart);
-
-          for (let j = i + 1; j < allCompletions.length; j++) {
-            const checkCompletion = new Date(allCompletions[j].completedAt);
-            const checkDayStart = new Date(checkCompletion);
-            checkDayStart.setUTCHours(0, 0, 0, 0);
-
-            const daysDiff = Math.floor((checkDayStart.getTime() - checkDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (daysDiff === 1) {
-              streakBeforeCompletion++;
-              checkDate = checkDayStart;
-            } else {
-              break;
-            }
-          }
-          break;
-        }
-      }
-
-      const points = calculatePoints(streakBeforeCompletion);
-
-      // Record completion
+      // Record completion with 0 points (missed completion earns no points)
       const [completion] = await app.db.insert(schema.habitCompletions).values({
         habitId,
         userId: session.user.id,
         completedAt,
-        points,
+        points: 0,
       }).returning();
 
       // Recalculate all streaks from scratch
-      const updatedCompletions = await app.db
+      const allCompletions = await app.db
         .select()
         .from(schema.habitCompletions)
         .where(eq(schema.habitCompletions.habitId, habitId))
@@ -331,13 +304,13 @@ export function registerCompletionRoutes(app: App) {
       let maxStreak = habit.maxStreak;
       let totalPoints = 0;
 
-      if (updatedCompletions.length > 0) {
+      if (allCompletions.length > 0) {
         currentStreak = 1;
-        totalPoints = updatedCompletions[0].points;
+        totalPoints = allCompletions[0].points;
 
-        for (let i = 1; i < updatedCompletions.length; i++) {
-          const current = new Date(updatedCompletions[i].completedAt);
-          const previous = new Date(updatedCompletions[i - 1].completedAt);
+        for (let i = 1; i < allCompletions.length; i++) {
+          const current = new Date(allCompletions[i].completedAt);
+          const previous = new Date(allCompletions[i - 1].completedAt);
 
           const daysDiff = Math.floor((current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -348,21 +321,20 @@ export function registerCompletionRoutes(app: App) {
           }
 
           maxStreak = Math.max(maxStreak, currentStreak);
-          totalPoints += updatedCompletions[i].points;
+          totalPoints += allCompletions[i].points;
         }
       }
 
-      // Calculate cost as 1.5x the points earned at that streak level
-      const COST_MULTIPLIER = 1.5;
-      const pointsCost = Math.floor(points * COST_MULTIPLIER);
-      totalPoints -= pointsCost;
+      // Deduct fixed 10 point cost and ensure points don't go below 0
+      totalPoints = Math.max(0, totalPoints - PAST_COMPLETION_COST);
 
-      // Update habit with recalculated streaks and points
+      // Update habit with recalculated streaks, points, and set pointStreakReset to true
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
           currentStreak,
           maxStreak,
           totalPoints,
+          pointStreakReset: true, // Next completion will earn 1 point
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
@@ -371,16 +343,17 @@ export function registerCompletionRoutes(app: App) {
       await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, pointsEarned: points, pointsCost, streak: currentStreak, totalPoints },
-        'Past habit completion recorded with proportional point deduction'
+        { userId: session.user.id, habitId, completionId: completion.id, pointsCost: PAST_COMPLETION_COST, streak: currentStreak, totalPoints },
+        'Past habit completion recorded with point deduction and streak reset'
       );
 
       return {
         completion,
         updatedHabit,
-        pointsEarned: points,
-        pointsCost,
-        message: `Past completion added. ${pointsCost} points deducted.`
+        pointsEarned: 0,
+        pointsCost: PAST_COMPLETION_COST,
+        totalPoints,
+        message: `Past completion added. ${PAST_COMPLETION_COST} points deducted. Your next completion will earn 1 point (streak point worthiness reset).`
       };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record past completion');
