@@ -74,8 +74,8 @@ export function HabitsOverview({
       <Text style={styles.title}>All Habits Overview</Text>
       
       {habits.map((habit) => {
-        const currentStreakText = `Current: ${habit.currentStreak}`;
-        const bestStreakText = `Best: ${habit.maxStreak}`;
+        const currentStreakText = `${habit.currentStreak}`;
+        const bestStreakText = `${habit.maxStreak}`;
         const todayCount = todayCompletionCounts[habit.id] || 0;
         const isDailyGoalReached = todayCount >= habit.goalCount;
         const nextPoints = getNextCompletionPoints(habit);
@@ -83,7 +83,7 @@ export function HabitsOverview({
 
         return (
           <View key={habit.id} style={styles.habitRow}>
-            {/* Top Row: Icon, Full Habit Name, Streaks, Plus Button */}
+            {/* Top Row: Icon, Habit Name with Streaks inline, Plus Button */}
             <View style={styles.topRow}>
               <View style={styles.leftSection}>
                 <View style={styles.nameRow}>
@@ -91,11 +91,13 @@ export function HabitsOverview({
                   <Text style={styles.habitName} numberOfLines={1}>
                     {habit.name}
                   </Text>
-                </View>
-                <View style={styles.streakInfo}>
-                  <Text style={styles.streakText}>{currentStreakText}</Text>
+                  <Text style={styles.streakCompact}>
+                    {currentStreakText}
+                  </Text>
                   <Text style={styles.streakDivider}>•</Text>
-                  <Text style={styles.streakText}>{bestStreakText}</Text>
+                  <Text style={styles.streakCompact}>
+                    {bestStreakText}
+                  </Text>
                 </View>
               </View>
 
@@ -218,7 +220,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
   },
   iconEmoji: {
     fontSize: 16,
@@ -229,17 +230,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     flex: 1,
   },
-  streakInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  streakText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+  streakCompact: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   streakDivider: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.5)',
   },
   buttonContainer: {
@@ -272,14 +269,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 4,
     paddingVertical: 1,
-    minWidth: 22,
+    minWidth: 24,
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.2)',
     elevation: 2,
   },
   pointsText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -291,53 +288,53 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 4,
     paddingVertical: 1,
-    minWidth: 22,
+    minWidth: 24,
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.2)',
     elevation: 2,
   },
   ratioText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
     color: '#ffffff',
   },
   calendarRow: {
     flexDirection: 'row',
-    gap: 3,
+    gap: 4,
     paddingLeft: 22,
   },
   dayColumn: {
     alignItems: 'center',
-    width: 26,
+    width: 30,
   },
   dayName: {
-    fontSize: 8,
+    fontSize: 9,
     color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   dayIndicatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 18,
+    height: 24,
     overflow: 'visible',
   },
   dayIndicatorContainer: {
     position: 'relative',
-    width: 18,
-    height: 18,
+    width: 24,
+    height: 24,
     overflow: 'visible',
   },
   dayIndicator: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dayNumberInside: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.5)',
   },
@@ -346,21 +343,21 @@ const styles = StyleSheet.create({
   },
   miniPlasterBadge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    width: 10,
-    height: 10,
+    top: -4,
+    right: -4,
+    width: 12,
+    height: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   miniPlasterEmoji: {
-    fontSize: 8,
+    fontSize: 9,
   },
   streakLine: {
     position: 'absolute',
     left: '50%',
     top: '50%',
-    width: 28,
+    width: 32,
     height: 2,
     borderRadius: 1,
     transform: [{ translateY: -1 }],
