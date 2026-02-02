@@ -271,9 +271,20 @@ export function registerCompletionRoutes(app: App) {
       }
 
       // Check if user has enough points (fixed cost of 10)
+      // Must check user's TOTAL points across ALL habits
       const PAST_COMPLETION_COST = 10;
-      if (habit.totalPoints < PAST_COMPLETION_COST) {
-        app.logger.warn({ userId: session.user.id, habitId, totalPoints: habit.totalPoints }, 'Insufficient points for past completion');
+      const userHabits = await app.db
+        .select()
+        .from(schema.habits)
+        .where(eq(schema.habits.userId, session.user.id));
+
+      let userTotalPoints = 0;
+      userHabits.forEach((h) => {
+        userTotalPoints += h.totalPoints;
+      });
+
+      if (userTotalPoints < PAST_COMPLETION_COST) {
+        app.logger.warn({ userId: session.user.id, habitId, userTotalPoints }, 'Insufficient total points for past completion');
         return reply.status(400).send({ error: 'Not enough points for this!' });
       }
 
