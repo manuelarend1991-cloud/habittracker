@@ -17,7 +17,7 @@ export function registerDashboardRoutes(app: App) {
     app.logger.info({ userId: session.user.id }, 'Fetching dashboard');
 
     try {
-      // Get all habits for user
+      // Get all habits for user with completions
       const habits = await app.db.query.habits.findMany({
         where: eq(schema.habits.userId, session.user.id),
         with: {
@@ -25,9 +25,16 @@ export function registerDashboardRoutes(app: App) {
         },
       });
 
-      // Get total points
+      // Get fresh totalPoints from database to ensure we have the latest values
+      // (not cached from the relation query)
+      const habitRecords = await app.db
+        .select()
+        .from(schema.habits)
+        .where(eq(schema.habits.userId, session.user.id));
+
+      // Get total points from fresh data
       let totalPoints = 0;
-      habits.forEach((habit) => {
+      habitRecords.forEach((habit) => {
         totalPoints += habit.totalPoints;
       });
 
