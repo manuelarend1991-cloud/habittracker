@@ -57,6 +57,22 @@ export default function HomeScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
 
+  // Calculate today's completion count for each habit - MUST BE DEFINED BEFORE USE
+  const getTodayCompletionCount = (habitId: string): number => {
+    const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
+    if (!dashboardHabit) {
+      return 0;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const todayCompletions = dashboardHabit.recentCompletions.filter(c => {
+      const completionDate = new Date(c.completedAt).toISOString().split('T')[0];
+      return completionDate === today;
+    });
+
+    return todayCompletions.length;
+  };
+
   const handleRefresh = async () => {
     console.log('[HomeScreen] User pulled to refresh');
     setRefreshing(true);
@@ -201,22 +217,6 @@ export default function HomeScreen() {
       todayCompletionCountsMap[h.id] = getTodayCompletionCount(h.id);
     });
   }
-
-  // Calculate today's completion count for each habit
-  const getTodayCompletionCount = (habitId: string): number => {
-    const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
-    if (!dashboardHabit) {
-      return 0;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const todayCompletions = dashboardHabit.recentCompletions.filter(c => {
-      const completionDate = new Date(c.completedAt).toISOString().split('T')[0];
-      return completionDate === today;
-    });
-
-    return todayCompletions.length;
-  };
 
   const totalPointsText = dashboard ? `${dashboard.totalPoints}` : '0';
   const recentBadgesCount = dashboard?.recentAchievements?.length || 0;
