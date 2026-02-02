@@ -14,6 +14,7 @@ interface HabitCardProps {
   recentCompletions?: string[];
   todayCompletionCount?: number;
   pointStreakReset?: boolean;
+  nextCompletionPoints?: number;
 }
 
 export function HabitCard({ 
@@ -25,7 +26,8 @@ export function HabitCard({
   onPress, 
   recentCompletions = [],
   todayCompletionCount = 0,
-  pointStreakReset = false
+  pointStreakReset = false,
+  nextCompletionPoints = 1
 }: HabitCardProps) {
   const goalText = `Goal: ${habit.goalCount}x per day`;
   const currentStreakText = `${habit.currentStreak}`;
@@ -40,18 +42,8 @@ export function HabitCard({
   // Check if daily goal is reached
   const isDailyGoalReached = todayCompletionCount >= habit.goalCount;
   
-  // Calculate next completion worth
-  // If lastMissedCompletionDate exists, calculate days since that date
-  // Otherwise, it's worth currentStreak + 1 (since we're continuing the streak)
-  let nextCompletionWorth = habit.currentStreak + 1;
-  
-  if (habit.lastMissedCompletionDate) {
-    const lastMissedDate = new Date(habit.lastMissedCompletionDate);
-    const today = new Date();
-    const daysSinceLastMissed = Math.floor((today.getTime() - lastMissedDate.getTime()) / (1000 * 60 * 60 * 24));
-    nextCompletionWorth = Math.max(1, daysSinceLastMissed);
-  }
-  
+  // Use nextCompletionPoints from dashboard (calculated by backend)
+  const nextCompletionWorth = nextCompletionPoints;
   const nextCompletionText = `Next: ${nextCompletionWorth} pt${nextCompletionWorth !== 1 ? 's' : ''}`;
 
   return (
@@ -85,12 +77,7 @@ export function HabitCard({
         </View>
         <View style={styles.streakItem}>
           <Text style={styles.streakLabel}>Next Worth</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={[styles.streakValue, { color: habit.color }]}>{nextCompletionText}</Text>
-            {habit.lastMissedCompletionDate && (
-              <Text style={{ fontSize: 14 }}>⚠️</Text>
-            )}
-          </View>
+          <Text style={[styles.streakValue, { color: habit.color }]}>{nextCompletionText}</Text>
         </View>
       </View>
 

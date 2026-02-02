@@ -285,10 +285,12 @@ export default function HomeScreen() {
 
   const recentCompletionsMap: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
+  const nextCompletionPointsMap: Record<string, number> = {};
   if (dashboard) {
     dashboard.habits.forEach(h => {
       recentCompletionsMap[h.id] = h.recentCompletions;
       todayCompletionCountsMap[h.id] = getTodayCompletionCount(h.id);
+      nextCompletionPointsMap[h.id] = h.nextCompletionPoints || 1;
     });
   }
 
@@ -367,6 +369,7 @@ export default function HomeScreen() {
           onAddCompletion={handleAddCompletion}
           recentCompletions={recentCompletionsMap}
           todayCompletionCounts={todayCompletionCountsMap}
+          nextCompletionPoints={nextCompletionPointsMap}
         />
 
         <View style={styles.summaryCard}>
@@ -597,30 +600,38 @@ export default function HomeScreen() {
             </View>
             <ScrollView style={styles.infoContent}>
               <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>✨ Earning Points</Text>
+                <Text style={styles.infoSectionTitle}>✨ Earning Points - NEW RULE</Text>
                 <Text style={styles.infoText}>
-                  • Day 1 of a streak: <Text style={styles.infoBold}>1 point</Text>
+                  Points earned = <Text style={styles.infoBold}>days since your last completion without a plaster 🩹</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 2 of a streak: <Text style={styles.infoBold}>2 points</Text>
+                  {'\n'}Example:
                 </Text>
                 <Text style={styles.infoText}>
-                  • Day 3 of a streak: <Text style={styles.infoBold}>3 points</Text>
+                  • Day 1: Complete → Earn <Text style={styles.infoBold}>1 point</Text>
                 </Text>
                 <Text style={styles.infoText}>
-                  • And so on... (points = streak day)
+                  • Day 2: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since last)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 3: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since last)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 4: Miss, add plaster 🩹 (costs 10 points)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 5: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (1 day since Day 3, last non-plastered)
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 6-7: Skip
+                </Text>
+                <Text style={styles.infoText}>
+                  • Day 8: Complete → Earn <Text style={styles.infoBold}>3 points</Text> (3 days since Day 5, last non-plastered)
                 </Text>
               </View>
 
               <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>🔄 Streak Interruption</Text>
-                <Text style={styles.infoText}>
-                  If you miss a day, your point counter resets. The next completion will earn only 1 point, starting a new point streak.
-                </Text>
-              </View>
-
-              <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>📅 Adding Missed Completions</Text>
+                <Text style={styles.infoSectionTitle}>📅 Adding Missed Completions (Plaster 🩹)</Text>
                 <Text style={styles.infoText}>
                   • Fixed cost: <Text style={styles.infoBold}>10 points</Text>
                 </Text>
@@ -628,7 +639,10 @@ export default function HomeScreen() {
                   • Continues your streak counter
                 </Text>
                 <Text style={styles.infoText}>
-                  • ⚠️ Resets point worthiness (next completion = 1 point)
+                  • Marked with a plaster badge 🩹 in the calendar
+                </Text>
+                <Text style={styles.infoText}>
+                  • Does NOT count as &quot;last non-plastered completion&quot; for point calculation
                 </Text>
                 <Text style={styles.infoText}>
                   • ❌ Blocked if you have less than 10 points

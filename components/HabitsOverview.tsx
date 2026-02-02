@@ -9,13 +9,15 @@ interface HabitsOverviewProps {
   onAddCompletion: (habitId: string) => void;
   recentCompletions?: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]>;
   todayCompletionCounts?: Record<string, number>;
+  nextCompletionPoints?: Record<string, number>;
 }
 
 export function HabitsOverview({ 
   habits, 
   onAddCompletion, 
   recentCompletions = {},
-  todayCompletionCounts = {}
+  todayCompletionCounts = {},
+  nextCompletionPoints = {}
 }: HabitsOverviewProps) {
   if (habits.length === 0) {
     return null;
@@ -59,14 +61,9 @@ export function HabitsOverview({
     return hasCompletionOnDate(habitId, currentDay) && hasCompletionOnDate(habitId, nextDay);
   };
 
-  // Calculate next completion points
-  const getNextCompletionPoints = (habit: Habit): number => {
-    // If point streak was reset (by missed completion), next is always 1
-    if (habit.pointStreakReset) {
-      return 1;
-    }
-    // Otherwise, next completion is worth (currentStreak + 1)
-    return habit.currentStreak + 1;
+  // Get next completion points from dashboard data
+  const getNextCompletionPoints = (habitId: string): number => {
+    return nextCompletionPoints[habitId] || 1;
   };
 
   return (
@@ -78,7 +75,7 @@ export function HabitsOverview({
         const bestStreakText = `${habit.maxStreak}`;
         const todayCount = todayCompletionCounts[habit.id] || 0;
         const isDailyGoalReached = todayCount >= habit.goalCount;
-        const nextPoints = getNextCompletionPoints(habit);
+        const nextPoints = getNextCompletionPoints(habit.id);
         const completionRatioText = `${todayCount}/${habit.goalCount}`;
 
         return (

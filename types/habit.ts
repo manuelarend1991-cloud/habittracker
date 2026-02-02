@@ -45,6 +45,7 @@ export interface DashboardData {
     totalPoints: number;
     pointStreakReset?: boolean;
     lastMissedCompletionDate?: string | null;
+    nextCompletionPoints: number;
     recentCompletions: {
       id: string;
       completedAt: string;
