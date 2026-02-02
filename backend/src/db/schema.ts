@@ -25,6 +25,7 @@ export const habitCompletions = pgTable('habit_completions', {
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
   points: integer('points').notNull(),
+  isMissedCompletion: boolean('is_missed_completion').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

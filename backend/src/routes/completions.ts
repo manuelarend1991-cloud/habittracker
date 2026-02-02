@@ -8,6 +8,18 @@ function calculatePoints(streakLength: number): number {
   return Math.max(1, streakLength);
 }
 
+// Check if any completions in the habit are marked as missed
+async function hasMissedCompletions(app: App, habitId: string): Promise<boolean> {
+  const missedCompletions = await app.db.query.habitCompletions.findFirst({
+    where: and(
+      eq(schema.habitCompletions.habitId, habitId),
+      eq(schema.habitCompletions.isMissedCompletion, true)
+    ),
+  });
+
+  return missedCompletions !== undefined;
+}
+
 async function checkAndUnlockAchievements(
   app: App,
   userId: string,
@@ -291,6 +303,7 @@ export function registerCompletionRoutes(app: App) {
         userId: session.user.id,
         completedAt,
         points: 0,
+        isMissedCompletion: true,
       }).returning();
 
       // Recalculate all streaks from scratch
@@ -448,17 +461,21 @@ export function registerCompletionRoutes(app: App) {
         }
       }
 
-      // Update habit with recalculated values
+      // Check if there are any missed completions to set pointStreakReset
+      const hasMissed = await hasMissedCompletions(app, habitId);
+
+      // Update habit with recalculated values and pointStreakReset flag
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
           currentStreak,
           totalPoints,
+          pointStreakReset: hasMissed,
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: mostRecentCompletion.id },
+        { userId: session.user.id, habitId, completionId: mostRecentCompletion.id, hasMissedCompletions: hasMissed },
         'Today\'s completion removed and streaks recalculated'
       );
 
@@ -539,10 +556,14 @@ export function registerCompletionRoutes(app: App) {
           }
         }
 
+        // Check if there are any missed completions to set pointStreakReset
+        const hasMissed = await hasMissedCompletions(app, habit.id);
+
         await app.db.update(schema.habits)
           .set({
             currentStreak,
             totalPoints,
+            pointStreakReset: hasMissed,
           })
           .where(eq(schema.habits.id, habit.id));
       }

@@ -1,0 +1,1 @@
+ALTER TABLE "habit_completions" ADD COLUMN "is_missed_completion" boolean DEFAULT false NOT NULL;

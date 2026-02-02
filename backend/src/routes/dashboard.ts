@@ -59,6 +59,7 @@ export function registerDashboardRoutes(app: App) {
             id: c.id,
             completedAt: c.completedAt,
             points: c.points,
+            isMissedCompletion: c.isMissedCompletion,
           })),
         };
       });
