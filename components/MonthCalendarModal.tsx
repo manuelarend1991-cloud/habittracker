@@ -45,6 +45,12 @@ export function MonthCalendarModal({
     }
   }, [visible]);
 
+  // Defensive check: if habit is null, don't render the modal content
+  if (!habit) {
+    console.error('[MonthCalendarModal] Habit is null, cannot render modal');
+    return null;
+  }
+
   const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   // Generate calendar days for the current month
