@@ -39,6 +39,7 @@ export function MonthCalendarModal({
   // Reset to current month when modal opens
   useEffect(() => {
     if (visible) {
+      console.log('[MonthCalendarModal] Modal opened, resetting to current month');
       setCurrentMonth(new Date());
       setSelectedDate(null);
       setConfirmModalVisible(false);
@@ -95,11 +96,15 @@ export function MonthCalendarModal({
   };
 
   const handleDatePress = (date: Date) => {
+    console.log('[MonthCalendarModal] User tapped date:', date.toISOString());
+    
     if (isFutureDate(date)) {
+      console.log('[MonthCalendarModal] Cannot add completion for future date');
       return; // Can't add completions for future dates
     }
 
     if (hasCompletionOnDate(date)) {
+      console.log('[MonthCalendarModal] Date already has completion');
       return; // Already completed
     }
 
@@ -113,6 +118,7 @@ export function MonthCalendarModal({
       return;
     }
 
+    console.log('[MonthCalendarModal] User confirmed adding completion for:', selectedDate.toISOString());
     setConfirmModalVisible(false);
     setIsAdding(true);
     
@@ -128,24 +134,74 @@ export function MonthCalendarModal({
   };
 
   const handleCancelAddCompletion = () => {
+    console.log('[MonthCalendarModal] User cancelled adding completion');
     setConfirmModalVisible(false);
     setSelectedDate(null);
   };
 
   const goToPreviousMonth = () => {
+    console.log('[MonthCalendarModal] User tapped previous month button');
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() - 1);
+    console.log('[MonthCalendarModal] Navigating to:', newMonth.toLocaleString('default', { month: 'long', year: 'numeric' }));
     setCurrentMonth(newMonth);
   };
 
   const goToNextMonth = () => {
+    console.log('[MonthCalendarModal] User tapped next month button');
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + 1);
+    console.log('[MonthCalendarModal] Navigating to:', newMonth.toLocaleString('default', { month: 'long', year: 'numeric' }));
     setCurrentMonth(newMonth);
   };
 
   const calendarDays = generateCalendarDays();
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Render a single day cell (extracted to avoid babel plugin issues with null checks)
+  const renderDayCell = (date: Date | null, index: number) => {
+    // Handle empty cells (null dates) - MUST CHECK FIRST
+    if (date === null) {
+      return <View key={`empty-${index}`} style={styles.dayCell} />;
+    }
+
+    // Now we know date is not null, safe to access properties
+    const completed = hasCompletionOnDate(date);
+    const today = isToday(date);
+    const future = isFutureDate(date);
+    const isSelected = selectedDate !== null && selectedDate.toDateString() === date.toDateString();
+    const dayNumber = date.getDate().toString();
+
+    return (
+      <TouchableOpacity
+        key={`day-${index}`}
+        style={[
+          styles.dayCell,
+          completed && { backgroundColor: habit.color },
+          today && styles.todayCell,
+          future && styles.futureCell,
+          isSelected && styles.selectedCell,
+        ]}
+        onPress={() => handleDatePress(date)}
+        disabled={future || completed || isAdding}
+        activeOpacity={0.7}
+      >
+        {isAdding && isSelected ? (
+          <ActivityIndicator size="small" color="#ffffff" />
+        ) : (
+          <Text
+            style={[
+              styles.dayText,
+              completed && styles.completedDayText,
+              future && styles.futureDayText,
+            ]}
+          >
+            {dayNumber}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -193,7 +249,7 @@ export function MonthCalendarModal({
           {/* Week Day Headers */}
           <View style={styles.weekDaysRow}>
             {weekDays.map((day, index) => (
-              <View key={index} style={styles.weekDayCell}>
+              <View key={`weekday-${index}`} style={styles.weekDayCell}>
                 <Text style={styles.weekDayText}>{day}</Text>
               </View>
             ))}
@@ -202,49 +258,7 @@ export function MonthCalendarModal({
           {/* Calendar Grid */}
           <ScrollView style={styles.calendarScroll}>
             <View style={styles.calendarGrid}>
-              {calendarDays.map((date, index) => {
-                // Handle empty cells (null dates) - MUST CHECK FIRST
-                if (date === null) {
-                  return <View key={`empty-${index}`} style={styles.dayCell} />;
-                }
-
-                // Now we know date is not null, safe to access properties
-                const completed = hasCompletionOnDate(date);
-                const today = isToday(date);
-                const future = isFutureDate(date);
-                const isSelected = selectedDate !== null && selectedDate.toDateString() === date.toDateString();
-                const dayNumber = date.getDate().toString();
-
-                return (
-                  <TouchableOpacity
-                    key={`day-${index}`}
-                    style={[
-                      styles.dayCell,
-                      completed && { backgroundColor: habit.color },
-                      today && styles.todayCell,
-                      future && styles.futureCell,
-                      isSelected && styles.selectedCell,
-                    ]}
-                    onPress={() => handleDatePress(date)}
-                    disabled={future || completed || isAdding}
-                    activeOpacity={0.7}
-                  >
-                    {isAdding && isSelected ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.dayText,
-                          completed && styles.completedDayText,
-                          future && styles.futureDayText,
-                        ]}
-                      >
-                        {dayNumber}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+              {calendarDays.map((date, index) => renderDayCell(date, index))}
             </View>
           </ScrollView>
 
