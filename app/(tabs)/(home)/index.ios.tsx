@@ -11,26 +11,96 @@ import {
   Modal,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { colors, commonStyles } from '@/styles/commonStyles';
-import { useHabits } from '@/hooks/useHabits';
+import * as Haptics from 'expo-haptics';
+import { MonthCalendarModal } from '@/components/MonthCalendarModal';
+import { EditHabitModal } from '@/components/EditHabitModal';
+import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
 import { HabitCard } from '@/components/HabitCard';
 import { HabitsOverview } from '@/components/HabitsOverview';
-import { MonthCalendarModal } from '@/components/MonthCalendarModal';
-import { AlertModal } from '@/components/AlertModal';
-import { PointsNotification } from '@/components/PointsNotification';
-import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
-import { EditHabitModal } from '@/components/EditHabitModal';
-import { IconSymbol } from '@/components/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
+import { useHabits } from '@/hooks/useHabits';
 import { Habit, HabitCompletion } from '@/types/habit';
-import * as Haptics from 'expo-haptics';
+import { PointsNotification } from '@/components/PointsNotification';
+import { colors, commonStyles } from '@/styles/commonStyles';
+import { AlertModal } from '@/components/AlertModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWidget } from '@/contexts/WidgetContext';
+import { IconSymbol } from '@/components/IconSymbol';
+
+const LEVEL_THRESHOLDS = [
+  { level: 1, name: 'Beginner', minPoints: 0 },
+  { level: 2, name: 'Novice', minPoints: 100 },
+  { level: 3, name: 'Apprentice', minPoints: 250 },
+  { level: 4, name: 'Intermediate', minPoints: 500 },
+  { level: 5, name: 'Advanced', minPoints: 1000 },
+  { level: 6, name: 'Expert', minPoints: 2000 },
+  { level: 7, name: 'Master', minPoints: 4000 },
+  { level: 8, name: 'Grandmaster', minPoints: 8000 },
+  { level: 9, name: 'Legend', minPoints: 16000 },
+  { level: 10, name: 'Mythic', minPoints: 32000 },
+];
+
+function getLevelInfo(totalPoints: number) {
+  let currentLevel = LEVEL_THRESHOLDS[0];
+  let nextLevel = LEVEL_THRESHOLDS[1];
+
+  for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
+    if (totalPoints >= LEVEL_THRESHOLDS[i].minPoints) {
+      currentLevel = LEVEL_THRESHOLDS[i];
+      nextLevel = LEVEL_THRESHOLDS[i + 1] || LEVEL_THRESHOLDS[i];
+    } else {
+      break;
+    }
+  }
+
+  const pointsForNextLevel = nextLevel.minPoints - currentLevel.minPoints;
+  const pointsToNextLevel = nextLevel.minPoints - totalPoints;
+  const progress = pointsForNextLevel > 0 
+    ? (totalPoints - currentLevel.minPoints) / pointsForNextLevel 
+    : 1;
+
+  return {
+    level: currentLevel.level,
+    levelName: currentLevel.name,
+    pointsForNextLevel,
+    pointsToNextLevel: Math.max(0, pointsToNextLevel),
+    progress: Math.min(1, Math.max(0, progress)),
+  };
+}
 
 export default function HomeScreen() {
-  const { 
-    habits, 
-    dashboard, 
-    loading, 
-    error, 
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [completions, setCompletions] = useState<HabitCompletion[]>([]);
+  const [loadingCompletions, setLoadingCompletions] = useState(false);
+  const [pointsNotification, setPointsNotification] = useState<{ visible: boolean; points: number }>({
+    visible: false,
+    points: 0,
+  });
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'error';
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
+  const router = useRouter();
+  const { signOut } = useAuth();
+  const { updateWidgetData } = useWidget();
+  const {
+    habits,
+    dashboard,
+    loading,
+    error,
     addCompletion,
     removeCompletion,
     addPastCompletion,
@@ -38,85 +108,55 @@ export default function HomeScreen() {
     updateHabit,
     deleteHabit,
     fetchCompletions,
-    refetch 
+    refetch,
   } = useHabits();
-  const { user, signOut } = useAuth();
-  const router = useRouter();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [selectedHabitForEdit, setSelectedHabitForEdit] = useState<Habit | null>(null);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  
-  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
-  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
-  const [habitCompletions, setHabitCompletions] = useState<HabitCompletion[]>([]);
-  const [loadingCompletions, setLoadingCompletions] = useState(false);
-  
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
 
-  const [pointsNotificationVisible, setPointsNotificationVisible] = useState(false);
-  const [pointsEarned, setPointsEarned] = useState(0);
-  const [pointsInfoModalVisible, setPointsInfoModalVisible] = useState(false);
+  // Update widget data whenever dashboard changes
+  React.useEffect(() => {
+    if (dashboard) {
+      console.log('[HomeScreen] Dashboard updated, refreshing widget data');
+      updateWidgetData(dashboard);
+    }
+  }, [dashboard, updateWidgetData]);
 
   const getTodayCompletionCount = (habitId: string): number => {
-    const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
-    if (!dashboardHabit) {
-      return 0;
-    }
-
-    // Use completionsToday from backend (more reliable)
-    return dashboardHabit.completionsToday || 0;
+    const habit = dashboard?.habits.find(h => h.id === habitId);
+    return habit?.completionsToday || 0;
   };
 
   const handleRefresh = async () => {
-    console.log('[HomeScreen] User pulled to refresh');
-    setRefreshing(true);
+    console.log('[HomeScreen] User triggered refresh');
     await refetch();
-    setRefreshing(false);
   };
 
   const showAlert = (title: string, message: string, type: 'info' | 'success' | 'error' = 'info') => {
-    setAlertTitle(title);
-    setAlertMessage(message);
-    setAlertType(type);
-    setAlertVisible(true);
+    setAlertModal({ visible: true, title, message, type });
   };
 
   const showPointsNotification = (points: number) => {
-    console.log('[HomeScreen] Showing points notification:', points);
-    setPointsEarned(points);
-    setPointsNotificationVisible(true);
+    setPointsNotification({ visible: true, points });
+    setTimeout(() => {
+      setPointsNotification({ visible: false, points: 0 });
+    }, 2000);
   };
 
   const handleAddCompletion = async (habitId: string) => {
-    const habit = habits.find(h => h.id === habitId);
-    console.log('[HomeScreen] User tapped quick add button for habit:', habitId, 'Current streak:', habit?.currentStreak);
+    console.log('[HomeScreen] User tapped add completion button for habit:', habitId);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const response = await addCompletion(habitId);
       
-      let pointsToShow = 0;
-      if (response) {
-        if (response.pointsEarned !== undefined) {
-          pointsToShow = response.pointsEarned;
-        } 
-        else if (response.completion && response.completion.points !== undefined) {
-          pointsToShow = response.completion.points;
-        }
-        
-        console.log('[HomeScreen] Points earned:', pointsToShow, 'New streak:', response.updatedHabit?.currentStreak);
-        showPointsNotification(pointsToShow);
+      if (response.pointsEarned && response.pointsEarned > 0) {
+        showPointsNotification(response.pointsEarned);
+      }
+      
+      if (response.message) {
+        showAlert('Success', response.message, 'success');
       }
     } catch (err: any) {
-      console.error('[HomeScreen] Failed to add completion:', err);
-      
+      console.error('[HomeScreen] Error adding completion:', err);
       if (err.isAlreadyCompleted) {
-        showAlert('Info', err.message, 'info');
+        showAlert('Already Completed', err.message, 'info');
       } else {
         showAlert('Error', 'Failed to add completion. Please try again.', 'error');
       }
@@ -124,46 +164,25 @@ export default function HomeScreen() {
   };
 
   const handleRemoveCompletion = async (habitId: string) => {
-    const habit = habits.find(h => h.id === habitId);
-    const oldTotalPoints = habit?.totalPoints || 0;
-    
-    console.log('[HomeScreen] User tapped decrement button for habit:', habitId, 'Current points:', oldTotalPoints);
+    console.log('[HomeScreen] User tapped remove completion button for habit:', habitId);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const response = await removeCompletion(habitId);
-      
-      const newTotalPoints = response.updatedHabit?.totalPoints || 0;
-      const pointsDeducted = oldTotalPoints - newTotalPoints;
-      
-      console.log('[HomeScreen] Completion removed. Points deducted:', pointsDeducted, 'New total:', newTotalPoints);
-      
-      if (pointsDeducted > 0) {
-        showPointsNotification(-pointsDeducted);
-        showAlert('Completion Removed', `${pointsDeducted} points deducted from this habit.`, 'success');
-      } else {
-        showAlert('Completion Removed', 'Completion removed successfully.', 'success');
-      }
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await removeCompletion(habitId);
     } catch (err: any) {
-      console.error('[HomeScreen] Failed to remove completion:', err);
+      console.error('[HomeScreen] Error removing completion:', err);
       showAlert('Error', 'Failed to remove completion. Please try again.', 'error');
     }
   };
 
   const handleCalendarPress = async (habit: Habit) => {
-    console.log('[HomeScreen] User tapped calendar button for habit:', habit.id);
+    console.log('[HomeScreen] User tapped calendar button for habit:', habit.name);
     setSelectedHabit(habit);
     setLoadingCompletions(true);
     setCalendarModalVisible(true);
     
-    try {
-      const completions = await fetchCompletions(habit.id);
-      setHabitCompletions(completions);
-    } catch (err) {
-      console.error('[HomeScreen] Failed to fetch completions:', err);
-      showAlert('Error', 'Failed to load calendar data', 'error');
-    } finally {
-      setLoadingCompletions(false);
-    }
+    const habitCompletions = await fetchCompletions(habit.id);
+    setCompletions(habitCompletions);
+    setLoadingCompletions(false);
   };
 
   const handleAddPastCompletion = async (date: Date) => {
@@ -171,42 +190,33 @@ export default function HomeScreen() {
       return;
     }
 
-    // IMMEDIATE CHECK: Verify user has enough points BEFORE attempting to add
-    const currentPoints = dashboard?.totalPoints || 0;
-    console.log('[HomeScreen] Checking points before adding past completion. Current total points:', currentPoints);
-    
-    if (currentPoints < 10) {
-      console.log('[HomeScreen] Insufficient points detected immediately:', currentPoints, '< 10');
-      showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
-      return; // Stop here, don't make the API call
+    console.log('[HomeScreen] User adding past completion for habit:', selectedHabit.name, 'date:', date);
+
+    if (!dashboard) {
+      showAlert('Error', 'Dashboard data not loaded', 'error');
+      return;
     }
 
-    console.log('[HomeScreen] User has sufficient points, proceeding with adding past completion for date:', date);
-    
+    if (dashboard.totalPoints < 10) {
+      showAlert(
+        'Insufficient Points',
+        'You need at least 10 points to add a past completion. Adding a past completion costs 10 points and acts as a plaster to keep your streak alive.',
+        'error'
+      );
+      return;
+    }
+
     try {
       const response = await addPastCompletion(selectedHabit.id, date);
       
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
-      setHabitCompletions(updatedCompletions);
+      setCompletions(updatedCompletions);
       
-      let costMessage = '10 points deducted.\n\n⚠️ Your next completion will earn 1 point (streak point worthiness reset).\n\n✅ Your streak counter continues.';
-      if (response && typeof response === 'object') {
-        if ('message' in response && response.message) {
-          costMessage = response.message;
-        }
-        
-        if ('pointsCost' in response) {
-          console.log('[HomeScreen] Points deducted:', response.pointsCost, 'New total:', dashboard?.totalPoints);
-        }
-      }
-      
-      showAlert('Missed Completion Added! ✅', costMessage, 'success');
+      const costMessage = response.pointsCost ? ` (Cost: ${response.pointsCost} points)` : '';
+      showAlert('Success', `Past completion added${costMessage}`, 'success');
     } catch (err: any) {
-      console.error('[HomeScreen] Failed to add past completion:', err);
-      
-      if (err.message && (err.message.includes('Not enough points') || err.message.includes('not enough points'))) {
-        showAlert('Not Enough Points! 🚫', 'You need at least 10 points to add a missed completion. Complete more habits to earn points!', 'error');
-      } else if (err.isAlreadyCompleted) {
+      console.error('[HomeScreen] Error adding past completion:', err);
+      if (err.isAlreadyCompleted) {
         showAlert('Already Completed', err.message, 'info');
       } else {
         showAlert('Error', 'Failed to add past completion. Please try again.', 'error');
@@ -221,18 +231,20 @@ export default function HomeScreen() {
     goalPeriodDays: number,
     icon: string
   ) => {
-    console.log('[HomeScreen] Creating new habit:', { name, color, goalCount, goalPeriodDays, icon });
+    console.log('[HomeScreen] User creating new habit:', { name, color, goalCount, goalPeriodDays, icon });
     try {
       await createHabit(name, color, goalCount, goalPeriodDays, icon);
+      setAddModalVisible(false);
+      showAlert('Success', 'Habit created successfully!', 'success');
     } catch (err) {
-      console.error('[HomeScreen] Failed to create habit:', err);
-      throw err;
+      console.error('[HomeScreen] Error creating habit:', err);
+      showAlert('Error', 'Failed to create habit. Please try again.', 'error');
     }
   };
 
   const handleSettingsPress = (habit: Habit) => {
-    console.log('[HomeScreen] User tapped settings for habit:', habit.id);
-    setSelectedHabitForEdit(habit);
+    console.log('[HomeScreen] User tapped settings button for habit:', habit.name);
+    setEditingHabit(habit);
     setEditModalVisible(true);
   };
 
@@ -244,266 +256,184 @@ export default function HomeScreen() {
     goalPeriodDays: number,
     icon: string
   ) => {
-    console.log('[HomeScreen] Updating habit:', habitId);
+    console.log('[HomeScreen] User updating habit:', habitId, { name, color, goalCount, goalPeriodDays, icon });
     try {
       await updateHabit(habitId, name, color, goalCount, goalPeriodDays, icon);
-      showAlert('Success!', 'Habit updated successfully', 'success');
+      setEditModalVisible(false);
+      setEditingHabit(null);
+      showAlert('Success', 'Habit updated successfully!', 'success');
     } catch (err) {
-      console.error('[HomeScreen] Failed to update habit:', err);
-      throw err;
+      console.error('[HomeScreen] Error updating habit:', err);
+      showAlert('Error', 'Failed to update habit. Please try again.', 'error');
     }
   };
 
   const handleDeleteHabit = async (habitId: string) => {
-    console.log('[HomeScreen] Deleting habit:', habitId);
+    console.log('[HomeScreen] User deleting habit:', habitId);
     try {
       await deleteHabit(habitId);
-      showAlert('Habit Deleted', 'The habit has been permanently deleted', 'success');
+      setEditModalVisible(false);
+      setEditingHabit(null);
+      showAlert('Success', 'Habit deleted successfully!', 'success');
     } catch (err) {
-      console.error('[HomeScreen] Failed to delete habit:', err);
+      console.error('[HomeScreen] Error deleting habit:', err);
       showAlert('Error', 'Failed to delete habit. Please try again.', 'error');
-      throw err;
     }
   };
 
   const handleLogout = async () => {
-    console.log('[HomeScreen] User confirmed logout');
-    setLogoutConfirmVisible(false);
-    try {
-      await signOut();
-      router.replace('/auth');
-    } catch (err) {
-      console.error('[HomeScreen] Logout failed:', err);
-      showAlert('Error', 'Failed to logout. Please try again.', 'error');
-    }
+    console.log('[HomeScreen] User tapped logout button');
+    setLogoutConfirmVisible(true);
   };
 
   const handleShowAllBadges = () => {
-    console.log('[HomeScreen] User tapped Show all badges button');
+    console.log('[HomeScreen] User tapped Show All Badges button');
     router.push('/badges');
   };
 
+  if (loading && habits.length === 0) {
+    return (
+      <View style={[commonStyles.container, styles.centerContent]}>
+        <Stack.Screen options={{ title: 'Habit Tracker' }} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const totalPoints = dashboard?.totalPoints || 0;
+  const levelInfo = getLevelInfo(totalPoints);
+  const recentBadges = dashboard?.recentAchievements || [];
+
   const recentCompletionsMap: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]> = {};
-  const todayCompletionCountsMap: Record<string, number> = {};
-  const nextCompletionPointsMap: Record<string, number> = {};
-  const goalCountsMap: Record<string, number> = {};
+  const todayCompletionCounts: Record<string, number> = {};
+  const nextCompletionPoints: Record<string, number> = {};
+  const goalCounts: Record<string, number> = {};
+
   if (dashboard) {
-    dashboard.habits.forEach(h => {
-      recentCompletionsMap[h.id] = h.recentCompletions.map(c => ({
-        completedAt: c.completedAt,
-        isMissedCompletion: c.isMissedCompletion
-      }));
-      todayCompletionCountsMap[h.id] = h.completionsToday || 0;
-      nextCompletionPointsMap[h.id] = h.nextCompletionPoints || 0;
-      goalCountsMap[h.id] = h.goalCount || 1;
+    dashboard.habits.forEach(habit => {
+      recentCompletionsMap[habit.id] = habit.recentCompletions;
+      todayCompletionCounts[habit.id] = habit.completionsToday;
+      nextCompletionPoints[habit.id] = habit.nextCompletionPoints;
+      goalCounts[habit.id] = habit.goalCount;
     });
   }
 
-  const totalPointsText = dashboard ? `${dashboard.totalPoints}` : '0';
-  const recentBadgesCount = dashboard?.recentAchievements?.length || 0;
-  const recentBadgesText = `${recentBadgesCount}`;
-
   return (
     <View style={commonStyles.container}>
-      <Stack.Screen
-        options={{
+      <Stack.Screen 
+        options={{ 
           title: 'Habit Tracker',
-          headerLargeTitle: true,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => {
-                console.log('[HomeScreen] User tapped profile button');
-                setProfileModalVisible(true);
-              }}
-              style={styles.headerButton}
-            >
-              <IconSymbol
-                ios_icon_name="person.circle"
-                android_material_icon_name="account-circle"
-                size={28}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          ),
           headerRight: () => (
-            <TouchableOpacity
-              onPress={() => {
-                console.log('[HomeScreen] User tapped add habit button');
-                setModalVisible(true);
-              }}
-              style={styles.headerButton}
-            >
-              <IconSymbol
-                ios_icon_name="plus"
-                android_material_icon_name="add"
-                size={24}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12, marginRight: 8 }}>
+              <TouchableOpacity onPress={() => setInfoModalVisible(true)}>
+                <IconSymbol 
+                  ios_icon_name="info.circle" 
+                  android_material_icon_name="info" 
+                  size={24} 
+                  color={colors.text} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleLogout}>
+                <IconSymbol 
+                  ios_icon_name="rectangle.portrait.and.arrow.right" 
+                  android_material_icon_name="logout" 
+                  size={24} 
+                  color={colors.text} 
+                />
+              </TouchableOpacity>
+            </View>
           ),
-        }}
+        }} 
       />
-
-      <PointsNotification
-        points={pointsEarned}
-        visible={pointsNotificationVisible}
-        onHide={() => setPointsNotificationVisible(false)}
-      />
-
+      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
-        {error && (
-          <View style={styles.errorBanner}>
-            <IconSymbol
-              ios_icon_name="exclamationmark.triangle"
-              android_material_icon_name="warning"
-              size={20}
-              color="#dc2626"
-            />
-            <Text style={styles.errorBannerText}>{error}</Text>
+        <View style={styles.pointsCard}>
+          <View style={styles.pointsHeader}>
+            <Text style={styles.pointsTitle}>Total Points</Text>
+            <TouchableOpacity onPress={handleShowAllBadges}>
+              <Text style={styles.showAllBadgesButton}>Show all badges</Text>
+            </TouchableOpacity>
           </View>
-        )}
-
-        <HabitsOverview 
-          habits={habits} 
-          onAddCompletion={handleAddCompletion}
-          recentCompletions={recentCompletionsMap}
-          todayCompletionCounts={todayCompletionCountsMap}
-          nextCompletionPoints={nextCompletionPointsMap}
-          goalCounts={goalCountsMap}
-        />
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <IconSymbol
-                ios_icon_name="star.fill"
-                android_material_icon_name="star"
-                size={24}
-                color={colors.accent}
-              />
-              <View style={styles.summaryTextContainer}>
-                <Text style={styles.summaryValue}>{totalPointsText}</Text>
-                <Text style={styles.summaryLabel}>Total Points</Text>
-              </View>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <IconSymbol
-                ios_icon_name="trophy.fill"
-                android_material_icon_name="emoji-events"
-                size={24}
-                color={colors.success}
-              />
-              <View style={styles.summaryTextContainer}>
-                <Text style={styles.summaryValue}>{recentBadgesText}</Text>
-                <Text style={styles.summaryLabel}>Recent Badges</Text>
-              </View>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.showAllBadgesButton}
-            onPress={handleShowAllBadges}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.showAllBadgesText}>Show all badges</Text>
-            <IconSymbol
-              ios_icon_name="chevron.right"
-              android_material_icon_name="chevron-right"
-              size={16}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() => {
-              console.log('[HomeScreen] User tapped points info button');
-              setPointsInfoModalVisible(true);
-            }}
-          >
-            <IconSymbol
-              ios_icon_name="info.circle"
-              android_material_icon_name="info"
-              size={20}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.addHabitBox}
-          onPress={() => {
-            console.log('[HomeScreen] User tapped Add New Habit box');
-            setModalVisible(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <IconSymbol
-            ios_icon_name="plus.circle.fill"
-            android_material_icon_name="add-circle"
-            size={32}
-            color={colors.primary}
-          />
-          <Text style={styles.addHabitText}>Add New Habit</Text>
-        </TouchableOpacity>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Habits</Text>
+          <Text style={styles.pointsValue}>{totalPoints}</Text>
           
-          {loading && habits.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.levelContainer}>
+            <View style={styles.levelHeader}>
+              <Text style={styles.levelText}>Level {levelInfo.level}</Text>
+              <Text style={styles.levelName}>{levelInfo.levelName}</Text>
             </View>
-          ) : habits.length === 0 ? (
-            <View style={styles.emptyState}>
-              <IconSymbol
-                ios_icon_name="plus.circle"
-                android_material_icon_name="add-circle"
-                size={64}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.emptyStateTitle}>No habits yet</Text>
-              <Text style={styles.emptyStateText}>
-                Tap the + button to create your first habit
-              </Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: `${levelInfo.progress * 100}%` }]} />
             </View>
-          ) : (
-            <React.Fragment>
-              {habits.map((habit) => {
-                const dashboardHabit = dashboard?.habits.find(h => h.id === habit.id);
-                const recentCompletions = dashboardHabit?.recentCompletions.map(c => c.completedAt) || [];
-                const todayCount = getTodayCompletionCount(habit.id);
-                const pointStreakReset = dashboardHabit?.pointStreakReset || false;
-                const nextPoints = dashboardHabit?.nextCompletionPoints || 0;
-                
-                return (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    onComplete={() => handleAddCompletion(habit.id)}
-                    onCalendarPress={() => handleCalendarPress(habit)}
-                    onSettingsPress={() => handleSettingsPress(habit)}
-                    onDecrement={() => handleRemoveCompletion(habit.id)}
-                    recentCompletions={recentCompletions}
-                    todayCompletionCount={todayCount}
-                    pointStreakReset={pointStreakReset}
-                    nextCompletionPoints={nextPoints}
-                  />
-                );
-              })}
-            </React.Fragment>
+            <Text style={styles.progressText}>
+              {levelInfo.pointsToNextLevel} points to next level
+            </Text>
+          </View>
+
+          {recentBadges.length > 0 && (
+            <View style={styles.badgesContainer}>
+              <Text style={styles.badgesTitle}>Recent Badges ({recentBadges.length})</Text>
+              <View style={styles.badgesRow}>
+                {recentBadges.slice(0, 3).map((badge) => {
+                  const badgeIcon = badge.icon || '🏆';
+                  return (
+                    <View key={badge.id} style={styles.badgeItem}>
+                      <Text style={styles.badgeIcon}>{badgeIcon}</Text>
+                      <Text style={styles.badgeName} numberOfLines={1}>
+                        {badge.title}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
           )}
         </View>
+
+        <HabitsOverview
+          habits={habits}
+          onAddCompletion={handleAddCompletion}
+          recentCompletions={recentCompletionsMap}
+          todayCompletionCounts={todayCompletionCounts}
+          nextCompletionPoints={nextCompletionPoints}
+          goalCounts={goalCounts}
+        />
+
+        {habits.map((habit) => {
+          const todayCount = getTodayCompletionCount(habit.id);
+          const habitDashboardData = dashboard?.habits.find(h => h.id === habit.id);
+          const recentCompletionDates = habitDashboardData?.recentCompletions.map(c => c.completedAt) || [];
+          const nextPoints = habitDashboardData?.nextCompletionPoints || 1;
+
+          return (
+            <HabitCard
+              key={habit.id}
+              habit={habit}
+              onComplete={() => handleAddCompletion(habit.id)}
+              onCalendarPress={() => handleCalendarPress(habit)}
+              onSettingsPress={() => handleSettingsPress(habit)}
+              onDecrement={() => handleRemoveCompletion(habit.id)}
+              recentCompletions={recentCompletionDates}
+              todayCompletionCount={todayCount}
+              pointStreakReset={habit.pointStreakReset}
+              nextCompletionPoints={nextPoints}
+            />
+          );
+        })}
+
+        <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
+          <Text style={styles.addButtonText}>+ Add New Habit</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <AddHabitModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
         onAdd={handleCreateHabit}
       />
 
@@ -511,277 +441,91 @@ export default function HomeScreen() {
         visible={editModalVisible}
         onClose={() => {
           setEditModalVisible(false);
-          setSelectedHabitForEdit(null);
+          setEditingHabit(null);
         }}
         onSave={handleUpdateHabit}
         onDelete={handleDeleteHabit}
-        habit={selectedHabitForEdit}
+        habit={editingHabit}
+      />
+
+      <MonthCalendarModal
+        visible={calendarModalVisible}
+        onClose={() => {
+          setCalendarModalVisible(false);
+          setSelectedHabit(null);
+          setCompletions([]);
+        }}
+        habit={selectedHabit!}
+        completions={completions}
+        onAddCompletion={handleAddPastCompletion}
+        loading={loadingCompletions}
+      />
+
+      <PointsNotification
+        visible={pointsNotification.visible}
+        points={pointsNotification.points}
+        onHide={() => setPointsNotification({ visible: false, points: 0 })}
+      />
+
+      <AlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ visible: false, title: '', message: '', type: 'info' })}
       />
 
       <Modal
-        visible={profileModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setProfileModalVisible(false)}
+        visible={infoModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInfoModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.profileModal}>
-            <View style={styles.profileHeader}>
-              <Text style={styles.profileTitle}>Profile</Text>
-              <TouchableOpacity
-                onPress={() => setProfileModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.profileContent}>
-              <View style={styles.profileInfo}>
-                <IconSymbol
-                  ios_icon_name="person.circle.fill"
-                  android_material_icon_name="account-circle"
-                  size={64}
-                  color={colors.primary}
-                />
-                <Text style={styles.profileEmail}>{user?.email || 'Not signed in'}</Text>
-                {user?.name && <Text style={styles.profileName}>{user.name}</Text>}
-              </View>
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={() => {
-                  setProfileModalVisible(false);
-                  setLogoutConfirmVisible(true);
-                }}
-              >
-                <Text style={styles.logoutButtonText}>Sign Out</Text>
-              </TouchableOpacity>
-            </View>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setInfoModalVisible(false)}
+        >
+          <View style={styles.infoModalContent}>
+            <Text style={styles.infoModalTitle}>How Points Work</Text>
+            <Text style={styles.infoModalText}>
+              • Complete your daily goal to earn points{'\n'}
+              • Points earned = current day number in your streak{'\n'}
+              • Day 1 = 1 point, Day 2 = 2 points, Day 3 = 3 points, etc.{'\n'}
+              • Missing a day breaks your streak and resets points to 1{'\n'}
+              • Use a plaster (costs 10 points) to keep your streak alive{'\n'}
+              • After using a plaster, points reset to 1 for the next completion{'\n'}
+              • For non-daily habits, points still count based on streak days
+            </Text>
+            <TouchableOpacity
+              style={styles.infoModalButton}
+              onPress={() => setInfoModalVisible(false)}
+            >
+              <Text style={styles.infoModalButtonText}>Got it!</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       <ConfirmModal
         visible={logoutConfirmVisible}
-        title="Sign Out"
-        message="Are you sure you want to sign out?"
-        confirmText="Sign Out"
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
         cancelText="Cancel"
-        onConfirm={handleLogout}
+        destructive
+        onConfirm={async () => {
+          setLogoutConfirmVisible(false);
+          try {
+            await signOut();
+            router.replace('/auth');
+          } catch (err) {
+            console.error('[HomeScreen] Error during logout:', err);
+            showAlert('Error', 'Failed to logout. Please try again.', 'error');
+          }
+        }}
         onCancel={() => setLogoutConfirmVisible(false)}
-        destructive={true}
       />
-
-      {selectedHabit && (
-        <MonthCalendarModal
-          visible={calendarModalVisible}
-          onClose={() => {
-            setCalendarModalVisible(false);
-            setSelectedHabit(null);
-            setHabitCompletions([]);
-          }}
-          habit={selectedHabit}
-          completions={habitCompletions}
-          onAddCompletion={handleAddPastCompletion}
-          loading={loadingCompletions}
-        />
-      )}
-
-      <AlertModal
-        visible={alertVisible}
-        title={alertTitle}
-        message={alertMessage}
-        type={alertType}
-        onClose={() => setAlertVisible(false)}
-      />
-
-      <Modal
-        visible={pointsInfoModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setPointsInfoModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.infoModal}>
-            <View style={styles.infoHeader}>
-              <Text style={styles.infoTitle}>How Points Work 🎯</Text>
-              <TouchableOpacity
-                onPress={() => setPointsInfoModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.infoContent}>
-              <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>✨ Earning Points - How It Works</Text>
-                <Text style={styles.infoText}>
-                  <Text style={styles.infoBold}>Points are ONLY awarded when you complete your daily goal!</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}For example, if your goal is 2 completions per day:
-                </Text>
-                <Text style={styles.infoText}>
-                  • 1st completion (1/2): <Text style={styles.infoBold}>0 points</Text> (goal not met yet)
-                </Text>
-                <Text style={styles.infoText}>
-                  • 2nd completion (2/2): <Text style={styles.infoBold}>Full points!</Text> (goal achieved ✓)
-                </Text>
-                <Text style={styles.infoText}>
-                  • 3rd+ completion (3/2): <Text style={styles.infoBold}>0 points</Text> (goal already met)
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}Points earned = <Text style={styles.infoBold}>Current day number in your streak</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}The "+X" badge shows how many points you&apos;ll earn when you complete today&apos;s goal!
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}<Text style={styles.infoBold}>Example 1: Consistent completions</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (Day 2 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 3: Complete goal (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (Day 3 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>4 points</Text> (Day 4 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}<Text style={styles.infoBold}>Example 2: With a gap (no plaster)</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (Day 2 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 3: Miss (no completion, no plaster) ❌ Streak breaks!
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 of NEW streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 5: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (Day 2 of new streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}<Text style={styles.infoBold}>Example 3: With plaster (streak continues)</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 1: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 2: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (Day 2 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 3: Miss, add plaster 🩹 (costs 10 points, streak continues, points reset)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 4: Complete goal (1/1) → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 after plaster)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 5: Complete goal (1/1) → Earn <Text style={styles.infoBold}>2 points</Text> (Day 2 after plaster)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 6: Complete goal (1/1) → Earn <Text style={styles.infoBold}>3 points</Text> (Day 3 after plaster)
-                </Text>
-                <Text style={styles.infoText}>
-                  {'\n'}<Text style={styles.infoBold}>Example 4: Non-daily habits (3 out of 7 days)</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 1: Complete → Earn <Text style={styles.infoBold}>1 point</Text> (Day 1 of streak)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 2: No completion (streak still valid)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 3: No completion (streak still valid)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 4: Complete → Earn <Text style={styles.infoBold}>4 points</Text> (Day 4 of streak!)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 5: No completion (streak still valid)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Day 6: Complete → Earn <Text style={styles.infoBold}>6 points</Text> (Day 6 of streak!)
-                </Text>
-              </View>
-
-              <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>📅 Adding Missed Completions (Plaster 🩹)</Text>
-                <Text style={styles.infoText}>
-                  • Fixed cost: <Text style={styles.infoBold}>10 points</Text>
-                </Text>
-                <Text style={styles.infoText}>
-                  • Continues your streak counter (prevents streak from breaking)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Marked with a plaster badge 🩹 in the calendar
-                </Text>
-                <Text style={styles.infoText}>
-                  • <Text style={styles.infoBold}>Resets point calculation</Text> - your next completion will earn 1 point (as if starting fresh)
-                </Text>
-                <Text style={styles.infoText}>
-                  • ❌ Blocked if you have less than 10 points
-                </Text>
-              </View>
-
-              <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>↩️ Undoing Completions</Text>
-                <Text style={styles.infoText}>
-                  • Removes the completion from today
-                </Text>
-                <Text style={styles.infoText}>
-                  • <Text style={styles.infoBold}>Deducts the points</Text> you earned from that completion
-                </Text>
-                <Text style={styles.infoText}>
-                  • Recalculates your streak and total points
-                </Text>
-              </View>
-
-              <View style={styles.infoSection}>
-                <Text style={styles.infoSectionTitle}>💡 Pro Tips</Text>
-                <Text style={styles.infoText}>
-                  • <Text style={styles.infoBold}>Complete your daily goal</Text> to earn points! Partial completions (1/2) earn nothing.
-                </Text>
-                <Text style={styles.infoText}>
-                  • Points = <Text style={styles.infoBold}>Current day number in your streak</Text> (Day 1 = 1pt, Day 2 = 2pts, Day 3 = 3pts...)
-                </Text>
-                <Text style={styles.infoText}>
-                  • Longer streaks = More points per completion! Day 10 = 10 points, Day 50 = 50 points!
-                </Text>
-                <Text style={styles.infoText}>
-                  • Watch the "+X" badge to see how many points you&apos;ll get when you complete today&apos;s goal.
-                </Text>
-                <Text style={styles.infoText}>
-                  • Once you hit your daily goal, the button shows ✓ and you won&apos;t earn more points today.
-                </Text>
-                <Text style={styles.infoText}>
-                  • Plasters (🩹) keep your streak counter alive but reset point calculation to 1.
-                </Text>
-                <Text style={styles.infoText}>
-                  • For non-daily habits, points are based on the day of the streak, not the number of completions!
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -791,232 +535,165 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 100,
   },
-  headerButton: {
-    padding: 8,
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  summaryCard: {
+  pointsCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
     elevation: 2,
-    position: 'relative',
   },
-  summaryRow: {
+  pointsHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  infoButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 4,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  summaryTextContainer: {
-    alignItems: 'flex-start',
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: '700',
+  pointsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
   },
-  summaryLabel: {
+  showAllBadgesButton: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  pointsValue: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  levelContainer: {
+    marginBottom: 16,
+  },
+  levelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  levelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  levelName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+  },
+  progressText: {
     fontSize: 12,
     color: colors.textSecondary,
   },
-  summaryDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.border,
+  badgesContainer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
   },
-  showAllBadgesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  showAllBadgesText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  addHabitBox: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-  },
-  addHabitText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
+  badgesTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
     marginBottom: 8,
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  errorBanner: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  badgesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
-  errorBannerText: {
+  badgeItem: {
     flex: 1,
-    fontSize: 14,
-    color: '#dc2626',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeIcon: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  badgeName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  addButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  profileModal: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '60%',
-    paddingBottom: 40,
-  },
-  profileHeader: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  profileTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  profileContent: {
     padding: 20,
   },
-  profileInfo: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  profileEmail: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
-  },
-  profileName: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  logoutButton: {
-    backgroundColor: '#ef4444',
+  infoModalContent: {
+    backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  infoModal: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '70%',
-    paddingBottom: 40,
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  infoTitle: {
-    fontSize: 24,
+  infoModalTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
-  },
-  infoContent: {
-    padding: 20,
-  },
-  infoSection: {
-    marginBottom: 24,
-  },
-  infoSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
-  infoText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  infoBold: {
-    fontWeight: '700',
+  infoModalText: {
+    fontSize: 14,
     color: colors.text,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  infoModalButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  infoModalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -17,6 +17,11 @@
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.anonymous.Natively"
+        ]
       }
     },
     "android": {
@@ -34,7 +39,13 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@bacons/apple-targets",
+        {
+          "appleTeamId": "YOUR_TEAM_ID"
+        }
+      ]
     ],
     "scheme": "Habit Tracker",
     "experiments": {
