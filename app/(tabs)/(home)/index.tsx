@@ -130,7 +130,7 @@ export default function HomeScreen() {
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      showAlert('Success!', 'Past completion added', 'success');
+      showAlert('Success!', 'Past completion added. 10 points deducted.', 'success');
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
@@ -194,9 +194,11 @@ export default function HomeScreen() {
 
   // Build recent completions map for HabitsOverview
   const recentCompletionsMap: Record<string, string[]> = {};
+  const todayCompletionCountsMap: Record<string, number> = {};
   if (dashboard) {
     dashboard.habits.forEach(h => {
       recentCompletionsMap[h.id] = h.recentCompletions.map(c => c.completedAt);
+      todayCompletionCountsMap[h.id] = getTodayCompletionCount(h.id);
     });
   }
 
@@ -285,6 +287,7 @@ export default function HomeScreen() {
           habits={habits} 
           onAddCompletion={handleAddCompletion}
           recentCompletions={recentCompletionsMap}
+          todayCompletionCounts={todayCompletionCountsMap}
         />
 
         {/* Points & Badges Summary */}

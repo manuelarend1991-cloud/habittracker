@@ -12,6 +12,7 @@ import {
 import { IconSymbol } from './IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { Habit, HabitCompletion } from '@/types/habit';
+import { ConfirmModal } from './AddHabitModal';
 
 interface MonthCalendarModalProps {
   visible: boolean;
@@ -33,12 +34,14 @@ export function MonthCalendarModal({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
   // Reset to current month when modal opens
   useEffect(() => {
     if (visible) {
       setCurrentMonth(new Date());
       setSelectedDate(null);
+      setConfirmModalVisible(false);
     }
   }, [visible]);
 
@@ -91,7 +94,7 @@ export function MonthCalendarModal({
     return checkDate > today;
   };
 
-  const handleDatePress = async (date: Date) => {
+  const handleDatePress = (date: Date) => {
     if (isFutureDate(date)) {
       return; // Can't add completions for future dates
     }
@@ -100,17 +103,33 @@ export function MonthCalendarModal({
       return; // Already completed
     }
 
+    // Select the date and show confirmation modal
     setSelectedDate(date);
+    setConfirmModalVisible(true);
+  };
+
+  const handleConfirmAddCompletion = async () => {
+    if (!selectedDate) {
+      return;
+    }
+
+    setConfirmModalVisible(false);
     setIsAdding(true);
     
     try {
-      await onAddCompletion(date);
+      await onAddCompletion(selectedDate);
       setSelectedDate(null);
     } catch (error) {
       console.error('[MonthCalendarModal] Error adding completion:', error);
+      setSelectedDate(null);
     } finally {
       setIsAdding(false);
     }
+  };
+
+  const handleCancelAddCompletion = () => {
+    setConfirmModalVisible(false);
+    setSelectedDate(null);
   };
 
   const goToPreviousMonth = () => {
@@ -249,6 +268,17 @@ export function MonthCalendarModal({
             Tap any available day to add a missed completion
           </Text>
         </View>
+
+        {/* Confirmation Modal */}
+        <ConfirmModal
+          visible={confirmModalVisible}
+          title="Add Missed Completion"
+          message="Are you sure you want to add a missed completion? This will cost 10 points."
+          confirmText="Yes, add it"
+          cancelText="Cancel"
+          onConfirm={handleConfirmAddCompletion}
+          onCancel={handleCancelAddCompletion}
+        />
       </View>
     </Modal>
   );

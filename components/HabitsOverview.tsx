@@ -9,9 +9,15 @@ interface HabitsOverviewProps {
   habits: Habit[];
   onAddCompletion: (habitId: string) => void;
   recentCompletions?: Record<string, string[]>;
+  todayCompletionCounts?: Record<string, number>;
 }
 
-export function HabitsOverview({ habits, onAddCompletion, recentCompletions = {} }: HabitsOverviewProps) {
+export function HabitsOverview({ 
+  habits, 
+  onAddCompletion, 
+  recentCompletions = {},
+  todayCompletionCounts = {}
+}: HabitsOverviewProps) {
   if (habits.length === 0) {
     return null;
   }
@@ -40,6 +46,8 @@ export function HabitsOverview({ habits, onAddCompletion, recentCompletions = {}
       {habits.map((habit) => {
         const currentStreakText = `Current: ${habit.currentStreak}`;
         const bestStreakText = `Best: ${habit.maxStreak}`;
+        const todayCount = todayCompletionCounts[habit.id] || 0;
+        const isDailyGoalReached = todayCount >= habit.goalCount;
 
         return (
           <View key={habit.id} style={styles.habitRow}>
@@ -81,16 +89,30 @@ export function HabitsOverview({ habits, onAddCompletion, recentCompletions = {}
 
               {/* Plus Button */}
               <TouchableOpacity
-                style={[styles.addButton, { backgroundColor: habit.color }]}
+                style={[
+                  styles.addButton, 
+                  { backgroundColor: habit.color },
+                  isDailyGoalReached && styles.addButtonDisabled
+                ]}
                 onPress={() => onAddCompletion(habit.id)}
-                activeOpacity={0.8}
+                activeOpacity={isDailyGoalReached ? 1 : 0.8}
+                disabled={isDailyGoalReached}
               >
-                <IconSymbol
-                  ios_icon_name="plus"
-                  android_material_icon_name="add"
-                  size={20}
-                  color="#ffffff"
-                />
+                {isDailyGoalReached ? (
+                  <IconSymbol
+                    ios_icon_name="checkmark"
+                    android_material_icon_name="check"
+                    size={20}
+                    color="#ffffff"
+                  />
+                ) : (
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={20}
+                    color="#ffffff"
+                  />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -188,5 +210,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.15)',
     elevation: 3,
+  },
+  addButtonDisabled: {
+    opacity: 0.6,
   },
 });

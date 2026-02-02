@@ -35,6 +35,9 @@ export function HabitCard({
   // Calculate progress percentage for today
   const progressPercentage = Math.min((todayCompletionCount / habit.goalCount) * 100, 100);
   const progressPercentageText = `${Math.round(progressPercentage)}%`;
+  
+  // Check if daily goal is reached
+  const isDailyGoalReached = todayCompletionCount >= habit.goalCount;
 
   return (
     <View
@@ -133,16 +136,30 @@ export function HabitCard({
           )}
 
           <TouchableOpacity
-            style={[styles.incrementButton, { backgroundColor: habit.color }]}
+            style={[
+              styles.incrementButton, 
+              { backgroundColor: habit.color },
+              isDailyGoalReached && styles.incrementButtonDisabled
+            ]}
             onPress={onComplete}
-            activeOpacity={0.8}
+            activeOpacity={isDailyGoalReached ? 1 : 0.8}
+            disabled={isDailyGoalReached}
           >
-            <IconSymbol
-              ios_icon_name="plus"
-              android_material_icon_name="add"
-              size={24}
-              color="#ffffff"
-            />
+            {isDailyGoalReached ? (
+              <IconSymbol
+                ios_icon_name="checkmark"
+                android_material_icon_name="check"
+                size={24}
+                color="#ffffff"
+              />
+            ) : (
+              <IconSymbol
+                ios_icon_name="plus"
+                android_material_icon_name="add"
+                size={24}
+                color="#ffffff"
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -286,5 +303,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
     elevation: 4,
+  },
+  incrementButtonDisabled: {
+    opacity: 0.6,
   },
 });

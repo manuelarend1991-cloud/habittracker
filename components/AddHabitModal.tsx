@@ -142,7 +142,7 @@ interface AddHabitModalProps {
 export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(habitColors[0]);
-  const [goalCount, setGoalCount] = useState('5');
+  const [goalCount, setGoalCount] = useState('1');
   const [goalPeriodDays, setGoalPeriodDays] = useState('7');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +169,7 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
       
       // Reset form
       setName('');
-      setGoalCount('5');
+      setGoalCount('1');
       setGoalPeriodDays('7');
       setSelectedColor(habitColors[0]);
       onClose();
@@ -246,32 +246,34 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
               })}
             </View>
 
-            <Text style={styles.label}>Goal</Text>
-            <View style={styles.goalRow}>
-              <View style={styles.goalInput}>
-                <TextInput
-                  style={styles.input}
-                  value={goalCount}
-                  onChangeText={setGoalCount}
-                  keyboardType="number-pad"
-                  placeholder="5"
-                  placeholderTextColor={colors.textSecondary}
-                />
-                <Text style={styles.goalLabel}>times</Text>
-              </View>
-              <Text style={styles.goalSeparator}>per</Text>
-              <View style={styles.goalInput}>
-                <TextInput
-                  style={styles.input}
-                  value={goalPeriodDays}
-                  onChangeText={setGoalPeriodDays}
-                  keyboardType="number-pad"
-                  placeholder="7"
-                  placeholderTextColor={colors.textSecondary}
-                />
-                <Text style={styles.goalLabel}>days</Text>
-              </View>
-            </View>
+            <Text style={styles.label}>Daily Repetitions Required</Text>
+            <Text style={styles.helpText}>
+              How many times per day must this habit be completed?
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={goalCount}
+              onChangeText={setGoalCount}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <Text style={styles.helpText}>
+              The + button will be disabled once you reach this number for the day.
+            </Text>
+
+            <Text style={styles.label}>Goal Period (Days)</Text>
+            <Text style={styles.helpText}>
+              Track your streak over this many days
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={goalPeriodDays}
+              onChangeText={setGoalPeriodDays}
+              keyboardType="number-pad"
+              placeholder="7"
+              placeholderTextColor={colors.textSecondary}
+            />
             <Text style={styles.goalDescription}>{goalDescription}</Text>
 
             {error && (
@@ -378,11 +380,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: -20,
   },
+  helpText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    lineHeight: 18,
+  },
   goalDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
+    fontWeight: '600',
   },
   errorContainer: {
     backgroundColor: '#fee2e2',
