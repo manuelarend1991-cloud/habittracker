@@ -91,11 +91,13 @@ export function HabitsOverview({
                   <Text style={styles.habitName} numberOfLines={1}>
                     {habit.name}
                   </Text>
-                  <Text style={styles.streakCompact}>
+                  <Text style={styles.streakLabel}>Current:</Text>
+                  <Text style={styles.streakValue}>
                     {currentStreakText}
                   </Text>
                   <Text style={styles.streakDivider}>•</Text>
-                  <Text style={styles.streakCompact}>
+                  <Text style={styles.streakLabel}>Best:</Text>
+                  <Text style={styles.streakValue}>
                     {bestStreakText}
                   </Text>
                 </View>
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   habitRow: {
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 3,
   },
   leftSection: {
     flex: 1,
@@ -219,7 +221,7 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   iconEmoji: {
     fontSize: 16,
@@ -230,14 +232,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     flex: 1,
   },
-  streakCompact: {
+  streakLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  streakValue: {
     fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   streakDivider: {
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 2,
   },
   buttonContainer: {
     position: 'relative',
