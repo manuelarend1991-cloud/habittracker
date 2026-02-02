@@ -1,6 +1,6 @@
 import type { App } from '../index.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, gte, lt } from 'drizzle-orm';
+import { eq, and, gte, lt, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 
 const BASE_POINTS = 10;
@@ -112,14 +112,14 @@ export function registerCompletionRoutes(app: App) {
 
       const completedAt = body.completedAt ? new Date(body.completedAt) : new Date();
 
-      // Check for existing completion on the same day
+      // Check if today already has a completion to determine if this is the first completion of the day
       const dayStart = new Date(completedAt);
       dayStart.setUTCHours(0, 0, 0, 0);
 
       const dayEnd = new Date(dayStart);
       dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
-      const existingCompletion = await app.db.query.habitCompletions.findFirst({
+      const todayCompletions = await app.db.query.habitCompletions.findMany({
         where: and(
           eq(schema.habitCompletions.habitId, habitId),
           gte(schema.habitCompletions.completedAt, dayStart),
@@ -127,36 +127,35 @@ export function registerCompletionRoutes(app: App) {
         ),
       });
 
-      if (existingCompletion) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Completion already exists for this day');
-        return reply.status(409).send({ error: "You've completed this task, already!" });
-      }
-
-      // Calculate streak
+      // Allow multiple completions per day, but check if we're starting a new day streak
       let newStreak = habit.currentStreak;
+      let streakChanged = false;
 
-      // Check if completing for consecutive days
-      const yesterday = new Date(completedAt);
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      if (todayCompletions.length === 0) {
+        // This is the first completion of the day, check if we're continuing a streak
+        const yesterday = new Date(completedAt);
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
-      const yesterdayStart = new Date(yesterday);
-      yesterdayStart.setUTCHours(0, 0, 0, 0);
+        const yesterdayStart = new Date(yesterday);
+        yesterdayStart.setUTCHours(0, 0, 0, 0);
 
-      const yesterdayEnd = new Date(yesterdayStart);
-      yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1);
+        const yesterdayEnd = new Date(yesterdayStart);
+        yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1);
 
-      const yesterdayCompletion = await app.db.query.habitCompletions.findFirst({
-        where: and(
-          eq(schema.habitCompletions.habitId, habitId),
-          gte(schema.habitCompletions.completedAt, yesterdayStart),
-          lt(schema.habitCompletions.completedAt, yesterdayEnd)
-        ),
-      });
+        const yesterdayCompletion = await app.db.query.habitCompletions.findFirst({
+          where: and(
+            eq(schema.habitCompletions.habitId, habitId),
+            gte(schema.habitCompletions.completedAt, yesterdayStart),
+            lt(schema.habitCompletions.completedAt, yesterdayEnd)
+          ),
+        });
 
-      if (yesterdayCompletion) {
-        newStreak = habit.currentStreak + 1;
-      } else {
-        newStreak = 1;
+        if (yesterdayCompletion) {
+          newStreak = habit.currentStreak + 1;
+        } else {
+          newStreak = 1;
+        }
+        streakChanged = true;
       }
 
       const points = calculatePoints(newStreak - 1); // Calculate based on streak before this completion
@@ -170,7 +169,7 @@ export function registerCompletionRoutes(app: App) {
       }).returning();
 
       // Update habit with new streak and total points
-      const maxStreak = Math.max(habit.maxStreak, newStreak);
+      const maxStreak = streakChanged ? Math.max(habit.maxStreak, newStreak) : habit.maxStreak;
       const totalPoints = habit.totalPoints + points;
 
       const [updatedHabit] = await app.db.update(schema.habits)
@@ -374,6 +373,114 @@ export function registerCompletionRoutes(app: App) {
       return { completion, updatedHabit };
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record past completion');
+      throw error;
+    }
+  });
+
+  // DELETE /api/habits/:habitId/complete-today - Remove the most recent completion for today
+  app.fastify.delete('/api/habits/:habitId/complete-today', async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<any> => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const { habitId } = request.params as { habitId: string };
+
+    app.logger.info({ userId: session.user.id, habitId }, 'Removing today\'s completion');
+
+    try {
+      // Get the habit
+      const habit = await app.db.query.habits.findFirst({
+        where: eq(schema.habits.id, habitId),
+      });
+
+      if (!habit) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'Habit not found');
+        return reply.status(404).send({ error: 'Habit not found' });
+      }
+
+      if (habit.userId !== session.user.id) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'Unauthorized completion removal attempt');
+        return reply.status(403).send({ error: 'Unauthorized' });
+      }
+
+      // Find today's completions
+      const now = new Date();
+      const dayStart = new Date(now);
+      dayStart.setUTCHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(dayStart);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+      const todayCompletions = await app.db
+        .select()
+        .from(schema.habitCompletions)
+        .where(and(
+          eq(schema.habitCompletions.habitId, habitId),
+          gte(schema.habitCompletions.completedAt, dayStart),
+          lt(schema.habitCompletions.completedAt, dayEnd)
+        ))
+        .orderBy(desc(schema.habitCompletions.createdAt));
+
+      if (todayCompletions.length === 0) {
+        app.logger.warn({ userId: session.user.id, habitId }, 'No completions found for today');
+        return reply.status(404).send({ error: 'No completions found for today' });
+      }
+
+      // Remove the most recent completion
+      const mostRecentCompletion = todayCompletions[0];
+      await app.db.delete(schema.habitCompletions).where(eq(schema.habitCompletions.id, mostRecentCompletion.id));
+
+      // Recalculate streaks
+      const allCompletions = await app.db
+        .select()
+        .from(schema.habitCompletions)
+        .where(eq(schema.habitCompletions.habitId, habitId))
+        .orderBy(schema.habitCompletions.completedAt);
+
+      let currentStreak = 0;
+      let maxStreak = habit.maxStreak;
+      let totalPoints = 0;
+
+      if (allCompletions.length > 0) {
+        currentStreak = 1;
+        totalPoints = allCompletions[0].points;
+
+        for (let i = 1; i < allCompletions.length; i++) {
+          const current = new Date(allCompletions[i].completedAt);
+          const previous = new Date(allCompletions[i - 1].completedAt);
+
+          const daysDiff = Math.floor((current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 1) {
+            currentStreak++;
+          } else {
+            currentStreak = 1;
+          }
+
+          maxStreak = Math.max(maxStreak, currentStreak);
+          totalPoints += allCompletions[i].points;
+        }
+      }
+
+      // Update habit with recalculated values
+      const [updatedHabit] = await app.db.update(schema.habits)
+        .set({
+          currentStreak,
+          totalPoints,
+        })
+        .where(eq(schema.habits.id, habitId))
+        .returning();
+
+      app.logger.info(
+        { userId: session.user.id, habitId, completionId: mostRecentCompletion.id },
+        'Today\'s completion removed and streaks recalculated'
+      );
+
+      return { updatedHabit };
+    } catch (error) {
+      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to remove today\'s completion');
       throw error;
     }
   });

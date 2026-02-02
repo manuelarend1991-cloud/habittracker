@@ -70,11 +70,17 @@ export function registerHabitRoutes(app: App) {
     if (!session) return;
 
     const { id } = request.params as { id: string };
-    const body = request.body as { name?: string; color?: string; goalCount?: number; goalPeriodDays?: number };
+    const body = request.body as { name: string; color: string; goalCount: number; goalPeriodDays: number };
 
     app.logger.info({ userId: session.user.id, habitId: id, body }, 'Updating habit');
 
     try {
+      // Validate required fields
+      if (!body.name || !body.color || body.goalCount === undefined || body.goalPeriodDays === undefined) {
+        app.logger.warn({ userId: session.user.id, habitId: id, body }, 'Missing required fields for habit update');
+        return reply.status(400).send({ error: 'All fields (name, color, goalCount, goalPeriodDays) are required' });
+      }
+
       // Find the habit and verify ownership
       const habit = await app.db.query.habits.findFirst({
         where: eq(schema.habits.id, id),
@@ -90,15 +96,13 @@ export function registerHabitRoutes(app: App) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
-      // Build update object only with provided fields
-      const updateData: any = {};
-      if (body.name !== undefined) updateData.name = body.name;
-      if (body.color !== undefined) updateData.color = body.color;
-      if (body.goalCount !== undefined) updateData.goalCount = body.goalCount;
-      if (body.goalPeriodDays !== undefined) updateData.goalPeriodDays = body.goalPeriodDays;
-
       const [updatedHabit] = await app.db.update(schema.habits)
-        .set(updateData)
+        .set({
+          name: body.name,
+          color: body.color,
+          goalCount: body.goalCount,
+          goalPeriodDays: body.goalPeriodDays,
+        })
         .where(eq(schema.habits.id, id))
         .returning();
 
