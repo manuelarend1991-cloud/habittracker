@@ -8,6 +8,12 @@ function calculatePoints(streakLength: number): number {
   return Math.max(1, streakLength);
 }
 
+// Calculate points based on days since last missed completion
+function calculatePointsSinceMissed(completionDate: Date, lastMissedDate: Date): number {
+  const daysDiff = Math.floor((completionDate.getTime() - lastMissedDate.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, daysDiff);
+}
+
 // Check if any completions in the habit are marked as missed
 async function hasMissedCompletions(app: App, habitId: string): Promise<boolean> {
   const missedCompletions = await app.db.query.habitCompletions.findFirst({
@@ -18,6 +24,21 @@ async function hasMissedCompletions(app: App, habitId: string): Promise<boolean>
   });
 
   return missedCompletions !== undefined;
+}
+
+// Get the most recent missed completion date for a habit
+async function getLastMissedCompletionDate(app: App, habitId: string): Promise<Date | null> {
+  const lastMissed = await app.db
+    .select()
+    .from(schema.habitCompletions)
+    .where(and(
+      eq(schema.habitCompletions.habitId, habitId),
+      eq(schema.habitCompletions.isMissedCompletion, true)
+    ))
+    .orderBy(desc(schema.habitCompletions.completedAt))
+    .limit(1);
+
+  return lastMissed.length > 0 ? new Date(lastMissed[0].completedAt) : null;
 }
 
 async function checkAndUnlockAchievements(
@@ -169,12 +190,13 @@ export function registerCompletionRoutes(app: App) {
         streakChanged = true;
       }
 
-      // Calculate points based on whether pointStreakReset is set
+      // Calculate points based on lastMissedCompletionDate
       let points: number;
-      let pointStreakReset = false;
-      if (habit.pointStreakReset) {
-        // If streak was reset by a missed completion, award 1 point
-        points = 1;
+      const completedAtDate = new Date(completedAt);
+
+      if (habit.lastMissedCompletionDate) {
+        // If there's a missed completion, award points = days since last missed completion
+        points = calculatePointsSinceMissed(completedAtDate, new Date(habit.lastMissedCompletionDate));
       } else {
         // Otherwise, award points based on streak length before this completion
         points = calculatePoints(newStreak - 1);
@@ -197,7 +219,8 @@ export function registerCompletionRoutes(app: App) {
           currentStreak: newStreak,
           maxStreak,
           totalPoints,
-          pointStreakReset: false, // Reset the flag when completing
+          pointStreakReset: false,
+          lastMissedCompletionDate: null, // Clear the missed completion date when completing
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
@@ -352,13 +375,14 @@ export function registerCompletionRoutes(app: App) {
       // Deduct fixed 10 point cost and ensure points don't go below 0
       totalPoints = Math.max(0, totalPoints - PAST_COMPLETION_COST);
 
-      // Update habit with recalculated streaks, points, and set pointStreakReset to true
+      // Update habit with recalculated streaks, points, and set lastMissedCompletionDate
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
           currentStreak,
           maxStreak,
           totalPoints,
-          pointStreakReset: true, // Next completion will earn 1 point
+          pointStreakReset: true,
+          lastMissedCompletionDate: completedAt, // Track the date of the missed completion
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
@@ -472,15 +496,17 @@ export function registerCompletionRoutes(app: App) {
         }
       }
 
-      // Check if there are any missed completions to set pointStreakReset
+      // Check if there are any missed completions and get the most recent one
       const hasMissed = await hasMissedCompletions(app, habitId);
+      const lastMissedDate = hasMissed ? await getLastMissedCompletionDate(app, habitId) : null;
 
-      // Update habit with recalculated values and pointStreakReset flag
+      // Update habit with recalculated values and lastMissedCompletionDate
       const [updatedHabit] = await app.db.update(schema.habits)
         .set({
           currentStreak,
           totalPoints,
           pointStreakReset: hasMissed,
+          lastMissedCompletionDate: lastMissedDate,
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
@@ -567,14 +593,16 @@ export function registerCompletionRoutes(app: App) {
           }
         }
 
-        // Check if there are any missed completions to set pointStreakReset
+        // Check if there are any missed completions and get the most recent one
         const hasMissed = await hasMissedCompletions(app, habit.id);
+        const lastMissedDate = hasMissed ? await getLastMissedCompletionDate(app, habit.id) : null;
 
         await app.db.update(schema.habits)
           .set({
             currentStreak,
             totalPoints,
             pointStreakReset: hasMissed,
+            lastMissedCompletionDate: lastMissedDate,
           })
           .where(eq(schema.habits.id, habit.id));
       }

@@ -15,6 +15,7 @@ export const habits = pgTable('habits', {
   maxStreak: integer('max_streak').default(0).notNull(),
   totalPoints: integer('total_points').default(0).notNull(),
   pointStreakReset: boolean('point_streak_reset').default(false).notNull(),
+  lastMissedCompletionDate: timestamp('last_missed_completion_date', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

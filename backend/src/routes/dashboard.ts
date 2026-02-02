@@ -55,6 +55,7 @@ export function registerDashboardRoutes(app: App) {
           icon: habit.icon,
           currentStreak: habit.currentStreak,
           maxStreak: habit.maxStreak,
+          lastMissedCompletionDate: habit.lastMissedCompletionDate,
           recentCompletions: recentCompletions.map((c) => ({
             id: c.id,
             completedAt: c.completedAt,

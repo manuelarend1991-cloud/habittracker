@@ -1,0 +1,1 @@
+ALTER TABLE "habits" ADD COLUMN "last_missed_completion_date" timestamp with time zone;
