@@ -8,11 +8,18 @@ import { IconSymbol } from './IconSymbol';
 interface HabitCardProps {
   habit: Habit;
   onComplete: () => void;
+  onCalendarPress: () => void;
   onPress?: () => void;
-  recentCompletions?: string[]; // Array of ISO date strings
+  recentCompletions?: string[];
 }
 
-export function HabitCard({ habit, onComplete, onPress, recentCompletions = [] }: HabitCardProps) {
+export function HabitCard({ 
+  habit, 
+  onComplete, 
+  onCalendarPress,
+  onPress, 
+  recentCompletions = [] 
+}: HabitCardProps) {
   const goalText = `${habit.goalCount}x per ${habit.goalPeriodDays} days`;
   const currentStreakText = `${habit.currentStreak}`;
   const maxStreakText = `${habit.maxStreak}`;
@@ -44,6 +51,18 @@ export function HabitCard({ habit, onComplete, onPress, recentCompletions = [] }
           <Text style={styles.habitName}>{habit.name}</Text>
           <Text style={styles.goalText}>{goalText}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.calendarButton}
+          onPress={onCalendarPress}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="calendar"
+            android_material_icon_name="calendar-today"
+            size={24}
+            color={habit.color}
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.statsRow}>
@@ -111,6 +130,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   titleContainer: {
@@ -125,6 +147,9 @@ const styles = StyleSheet.create({
   goalText: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  calendarButton: {
+    padding: 4,
   },
   statsRow: {
     flexDirection: 'row',

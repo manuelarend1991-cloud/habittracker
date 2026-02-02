@@ -14,13 +14,27 @@ import { Stack, useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useHabits } from '@/hooks/useHabits';
 import { HabitCard } from '@/components/HabitCard';
+import { HabitsOverview } from '@/components/HabitsOverview';
+import { MonthCalendarModal } from '@/components/MonthCalendarModal';
+import { AlertModal } from '@/components/AlertModal';
 import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
+import { Habit, HabitCompletion } from '@/types/habit';
 import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
-  const { habits, dashboard, loading, error, addCompletion, createHabit, refetch } = useHabits();
+  const { 
+    habits, 
+    dashboard, 
+    loading, 
+    error, 
+    addCompletion, 
+    addPastCompletion,
+    createHabit, 
+    fetchCompletions,
+    refetch 
+  } = useHabits();
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
@@ -28,6 +42,16 @@ export default function HomeScreen() {
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [habitCompletions, setHabitCompletions] = useState<HabitCompletion[]>([]);
+  const [loadingCompletions, setLoadingCompletions] = useState(false);
+  
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
 
   const handleRefresh = async () => {
     console.log('[HomeScreen] User pulled to refresh');
@@ -36,15 +60,69 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const showAlert = (title: string, message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertVisible(true);
+  };
+
   const handleAddCompletion = async (habitId: string) => {
     console.log('[HomeScreen] User tapped quick add button for habit:', habitId);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await addCompletion(habitId);
-    } catch (err) {
+      showAlert('Success!', 'Habit completed for today', 'success');
+    } catch (err: any) {
       console.error('[HomeScreen] Failed to add completion:', err);
-      setErrorMessage('Failed to add completion. Please try again.');
-      setTimeout(() => setErrorMessage(null), 3000);
+      
+      if (err.isAlreadyCompleted) {
+        showAlert('Already Completed', err.message, 'info');
+      } else {
+        showAlert('Error', 'Failed to add completion. Please try again.', 'error');
+      }
+    }
+  };
+
+  const handleCalendarPress = async (habit: Habit) => {
+    console.log('[HomeScreen] User tapped calendar button for habit:', habit.id);
+    setSelectedHabit(habit);
+    setLoadingCompletions(true);
+    setCalendarModalVisible(true);
+    
+    try {
+      const completions = await fetchCompletions(habit.id);
+      setHabitCompletions(completions);
+    } catch (err) {
+      console.error('[HomeScreen] Failed to fetch completions:', err);
+      showAlert('Error', 'Failed to load calendar data', 'error');
+    } finally {
+      setLoadingCompletions(false);
+    }
+  };
+
+  const handleAddPastCompletion = async (date: Date) => {
+    if (!selectedHabit) {
+      return;
+    }
+
+    console.log('[HomeScreen] Adding past completion for date:', date);
+    
+    try {
+      await addPastCompletion(selectedHabit.id, date);
+      
+      const updatedCompletions = await fetchCompletions(selectedHabit.id);
+      setHabitCompletions(updatedCompletions);
+      
+      showAlert('Success!', 'Past completion added', 'success');
+    } catch (err: any) {
+      console.error('[HomeScreen] Failed to add past completion:', err);
+      
+      if (err.isAlreadyCompleted) {
+        showAlert('Already Completed', err.message, 'info');
+      } else {
+        showAlert('Error', 'Failed to add past completion', 'error');
+      }
     }
   };
 
@@ -59,7 +137,7 @@ export default function HomeScreen() {
       await createHabit(name, color, goalCount, goalPeriodDays);
     } catch (err) {
       console.error('[HomeScreen] Failed to create habit:', err);
-      throw err; // Let the modal handle the error
+      throw err;
     }
   };
 
@@ -71,8 +149,7 @@ export default function HomeScreen() {
       router.replace('/auth');
     } catch (err) {
       console.error('[HomeScreen] Logout failed:', err);
-      setErrorMessage('Failed to logout. Please try again.');
-      setTimeout(() => setErrorMessage(null), 3000);
+      showAlert('Error', 'Failed to logout. Please try again.', 'error');
     }
   };
 
@@ -121,13 +198,6 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* Error Toast */}
-      {errorMessage && (
-        <View style={styles.errorToast}>
-          <Text style={styles.errorToastText}>{errorMessage}</Text>
-        </View>
-      )}
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -135,7 +205,6 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Error State */}
         {error && (
           <View style={styles.errorBanner}>
             <IconSymbol
@@ -147,6 +216,9 @@ export default function HomeScreen() {
             <Text style={styles.errorBannerText}>{error}</Text>
           </View>
         )}
+
+        {/* Habits Overview - Fixed at top */}
+        <HabitsOverview habits={habits} />
 
         {/* Points & Badges Summary */}
         <View style={styles.summaryCard}>
@@ -201,7 +273,6 @@ export default function HomeScreen() {
           ) : (
             <React.Fragment>
               {habits.map((habit) => {
-                // Find recent completions for this habit from dashboard
                 const dashboardHabit = dashboard?.habits.find(h => h.id === habit.id);
                 const recentCompletions = dashboardHabit?.recentCompletions.map(c => c.completedAt) || [];
                 
@@ -210,6 +281,7 @@ export default function HomeScreen() {
                     key={habit.id}
                     habit={habit}
                     onComplete={() => handleAddCompletion(habit.id)}
+                    onCalendarPress={() => handleCalendarPress(habit)}
                     recentCompletions={recentCompletions}
                   />
                 );
@@ -273,7 +345,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Logout Confirmation */}
       <ConfirmModal
         visible={logoutConfirmVisible}
         title="Sign Out"
@@ -283,6 +354,29 @@ export default function HomeScreen() {
         onConfirm={handleLogout}
         onCancel={() => setLogoutConfirmVisible(false)}
         destructive={true}
+      />
+
+      {selectedHabit && (
+        <MonthCalendarModal
+          visible={calendarModalVisible}
+          onClose={() => {
+            setCalendarModalVisible(false);
+            setSelectedHabit(null);
+            setHabitCompletions([]);
+          }}
+          habit={selectedHabit}
+          completions={habitCompletions}
+          onAddCompletion={handleAddPastCompletion}
+          loading={loadingCompletions}
+        />
+      )}
+
+      <AlertModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={() => setAlertVisible(false)}
       />
     </View>
   );
@@ -376,24 +470,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#dc2626',
-  },
-  errorToast: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    right: 20,
-    backgroundColor: '#dc2626',
-    borderRadius: 12,
-    padding: 16,
-    zIndex: 1000,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-    elevation: 8,
-  },
-  errorToastText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,

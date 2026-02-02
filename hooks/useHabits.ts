@@ -34,7 +34,6 @@ export function useHabits() {
       setDashboard(data);
     } catch (err) {
       console.error('[useHabits] Error fetching dashboard:', err);
-      // Don't set error state for dashboard, it's not critical
     }
   }, []);
 
@@ -48,15 +47,56 @@ export function useHabits() {
       );
       console.log('[useHabits] Completion added:', response);
       
-      // Update local state with the updated habit
       setHabits(prevHabits => 
         prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)
       );
       
-      // Refetch dashboard to get updated stats
       await fetchDashboard();
-    } catch (err) {
+      return response;
+    } catch (err: any) {
       console.error('[useHabits] Error adding completion:', err);
+      
+      // Check if it's an ApiError with status 400 or 409
+      if (err.status === 400 || err.status === 409) {
+        // Use the backend error message if available, otherwise use default
+        const errorMessage = err.message || err.data?.error || "You've completed this task, already!";
+        const customError = new Error(errorMessage);
+        (customError as any).isAlreadyCompleted = true;
+        throw customError;
+      }
+      
+      throw err;
+    }
+  }, [fetchDashboard]);
+
+  const addPastCompletion = useCallback(async (habitId: string, date: Date) => {
+    console.log('[useHabits] Adding past completion for habit:', habitId, 'date:', date);
+    try {
+      const completedAt = date.toISOString();
+      const response = await authenticatedPost<{ completion: HabitCompletion; updatedHabit: Habit }>(
+        `/api/habits/${habitId}/complete-past`,
+        { completedAt }
+      );
+      console.log('[useHabits] Past completion added:', response);
+      
+      setHabits(prevHabits => 
+        prevHabits.map(h => h.id === habitId ? response.updatedHabit : h)
+      );
+      
+      await fetchDashboard();
+      return response;
+    } catch (err: any) {
+      console.error('[useHabits] Error adding past completion:', err);
+      
+      // Check if it's an ApiError with status 400 or 409
+      if (err.status === 400 || err.status === 409) {
+        // Use the backend error message if available, otherwise use default
+        const errorMessage = err.message || err.data?.error || 'Completion already exists for this date';
+        const customError = new Error(errorMessage);
+        (customError as any).isAlreadyCompleted = true;
+        throw customError;
+      }
+      
       throw err;
     }
   }, [fetchDashboard]);
@@ -72,10 +112,8 @@ export function useHabits() {
       });
       console.log('[useHabits] Habit created:', newHabit);
       
-      // Add to local state
       setHabits(prevHabits => [...prevHabits, newHabit]);
       
-      // Refetch dashboard
       await fetchDashboard();
     } catch (err) {
       console.error('[useHabits] Error creating habit:', err);
@@ -89,10 +127,8 @@ export function useHabits() {
       await authenticatedDelete(`/api/habits/${habitId}`);
       console.log('[useHabits] Habit deleted');
       
-      // Remove from local state
       setHabits(prevHabits => prevHabits.filter(h => h.id !== habitId));
       
-      // Refetch dashboard
       await fetchDashboard();
     } catch (err) {
       console.error('[useHabits] Error deleting habit:', err);
@@ -123,6 +159,7 @@ export function useHabits() {
     loading,
     error,
     addCompletion,
+    addPastCompletion,
     createHabit,
     deleteHabit,
     fetchCompletions,

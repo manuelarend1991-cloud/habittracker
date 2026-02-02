@@ -37,12 +37,27 @@ export const getBearerToken = async (): Promise<string | null> => {
 };
 
 /**
+ * Custom API Error class that preserves HTTP status and response data
+ */
+export class ApiError extends Error {
+  status: number;
+  data: any;
+
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+/**
  * Generic API call helper with error handling
  *
  * @param endpoint - API endpoint path (e.g., '/users', '/auth/login')
  * @param options - Fetch options (method, headers, body, etc.)
  * @returns Parsed JSON response
- * @throws Error if backend is not configured or request fails
+ * @throws ApiError if backend is not configured or request fails
  */
 export const apiCall = async <T = any>(
   endpoint: string,
@@ -78,9 +93,19 @@ export const apiCall = async <T = any>(
     const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error("[API] Error response:", response.status, text);
-      throw new Error(`API error: ${response.status} - ${text}`);
+      let errorData: any;
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        errorData = await response.json();
+      } else {
+        errorData = { error: await response.text() };
+      }
+      
+      console.error("[API] Error response:", response.status, errorData);
+      
+      const errorMessage = errorData?.error || `API error: ${response.status}`;
+      throw new ApiError(errorMessage, response.status, errorData);
     }
 
     const data = await response.json();
