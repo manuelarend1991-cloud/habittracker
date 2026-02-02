@@ -48,6 +48,19 @@ export function registerDashboardRoutes(app: App) {
           .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
           .slice(0, 7);
 
+        // Calculate nextCompletionPoints: days since last non-missed completion until today
+        let nextCompletionPoints = 1;
+        const lastNonMissed = habit.completions
+          .filter((c) => !c.isMissedCompletion)
+          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+
+        if (lastNonMissed) {
+          const lastNonMissedDate = new Date(lastNonMissed.completedAt);
+          const today = new Date(now);
+          const daysDiff = Math.floor((today.getTime() - lastNonMissedDate.getTime()) / (1000 * 60 * 60 * 24));
+          nextCompletionPoints = Math.max(1, daysDiff);
+        }
+
         return {
           id: habit.id,
           name: habit.name,
@@ -56,6 +69,7 @@ export function registerDashboardRoutes(app: App) {
           currentStreak: habit.currentStreak,
           maxStreak: habit.maxStreak,
           lastMissedCompletionDate: habit.lastMissedCompletionDate,
+          nextCompletionPoints,
           recentCompletions: recentCompletions.map((c) => ({
             id: c.id,
             completedAt: c.completedAt,

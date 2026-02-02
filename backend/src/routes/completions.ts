@@ -8,9 +8,12 @@ function calculatePoints(streakLength: number): number {
   return Math.max(1, streakLength);
 }
 
-// Calculate points based on days since last missed completion
-function calculatePointsSinceMissed(completionDate: Date, lastMissedDate: Date): number {
-  const daysDiff = Math.floor((completionDate.getTime() - lastMissedDate.getTime()) / (1000 * 60 * 60 * 24));
+// Calculate points based on days since last non-missed completion
+function calculatePointsSinceLastNonMissed(completionDate: Date, lastNonMissedDate: Date | null): number {
+  if (!lastNonMissedDate) {
+    return 1; // First completion or no previous non-missed completions
+  }
+  const daysDiff = Math.floor((completionDate.getTime() - lastNonMissedDate.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(1, daysDiff);
 }
 
@@ -26,7 +29,22 @@ async function hasMissedCompletions(app: App, habitId: string): Promise<boolean>
   return missedCompletions !== undefined;
 }
 
-// Get the most recent missed completion date for a habit
+// Get the most recent non-missed completion date for a habit
+async function getLastNonMissedCompletionDate(app: App, habitId: string): Promise<Date | null> {
+  const lastNonMissed = await app.db
+    .select()
+    .from(schema.habitCompletions)
+    .where(and(
+      eq(schema.habitCompletions.habitId, habitId),
+      eq(schema.habitCompletions.isMissedCompletion, false)
+    ))
+    .orderBy(desc(schema.habitCompletions.completedAt))
+    .limit(1);
+
+  return lastNonMissed.length > 0 ? new Date(lastNonMissed[0].completedAt) : null;
+}
+
+// Get the most recent missed completion date for a habit (for tracking purposes)
 async function getLastMissedCompletionDate(app: App, habitId: string): Promise<Date | null> {
   const lastMissed = await app.db
     .select()
@@ -190,17 +208,10 @@ export function registerCompletionRoutes(app: App) {
         streakChanged = true;
       }
 
-      // Calculate points based on lastMissedCompletionDate
-      let points: number;
+      // Calculate points based on days since last non-missed completion
       const completedAtDate = new Date(completedAt);
-
-      if (habit.lastMissedCompletionDate) {
-        // If there's a missed completion, award points = days since last missed completion
-        points = calculatePointsSinceMissed(completedAtDate, new Date(habit.lastMissedCompletionDate));
-      } else {
-        // Otherwise, award points based on streak length before this completion
-        points = calculatePoints(newStreak - 1);
-      }
+      const lastNonMissedDate = await getLastNonMissedCompletionDate(app, habitId);
+      const points = calculatePointsSinceLastNonMissed(completedAtDate, lastNonMissedDate);
 
       // Record completion
       const [completion] = await app.db.insert(schema.habitCompletions).values({
@@ -220,7 +231,7 @@ export function registerCompletionRoutes(app: App) {
           maxStreak,
           totalPoints,
           pointStreakReset: false,
-          lastMissedCompletionDate: null, // Clear the missed completion date when completing
+          // Keep lastMissedCompletionDate for tracking purposes (not used in point calculation anymore)
         })
         .where(eq(schema.habits.id, habitId))
         .returning();
