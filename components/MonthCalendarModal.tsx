@@ -258,7 +258,7 @@ export function MonthCalendarModal({
     );
   };
 
-  const confirmMessageText = 'Are you sure you want to add a missed completion?\n\n💰 Cost: 10 points (fixed)\n\n✅ Keeps your streak counter alive (prevents streak from breaking)\n\n⚠️ Important: This does NOT count as a regular completion. Your next completion will earn points based on days since your last REGULAR completion (not this plaster).\n\n🩹 Visual Indicator: This completion will be marked with a plaster badge in the calendar to distinguish it from regular completions.\n\nNote: If you don\'t have enough points, this action will be blocked.';
+  const confirmMessageText = 'Are you sure you want to add a missed completion?\n\n💰 Cost: 10 points (fixed)\n\n✅ Keeps your streak counter alive (prevents streak from breaking)\n\n⚠️ Important: This RESETS your point calculation. Your next completion will earn 1 point (Day 1 after plaster), then 2 points (Day 2), and so on.\n\n🩹 Visual Indicator: This completion will be marked with a plaster badge in the calendar to distinguish it from regular completions.\n\nNote: If you don\'t have enough points, this action will be blocked.';
 
   return (
     <Modal
