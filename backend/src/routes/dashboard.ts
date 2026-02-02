@@ -2,6 +2,7 @@ import type { App } from '../index.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq, desc, and, gte, lt } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
+import { calculateNextCompletionPoints } from './completions.js';
 
 export function registerDashboardRoutes(app: App) {
   const requireAuth = app.requireAuth();
@@ -42,7 +43,7 @@ export function registerDashboardRoutes(app: App) {
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      const habitsWithRecent = habits.map((habit) => {
+      const habitsWithRecent = await Promise.all(habits.map(async (habit) => {
         const recentCompletions = habit.completions
           .filter((c) => new Date(c.completedAt) >= sevenDaysAgo)
           .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
@@ -60,25 +61,12 @@ export function registerDashboardRoutes(app: App) {
         }).length;
 
         // Calculate nextCompletionPoints based on goal completion status
-        let nextCompletionPoints = 0;
-        if (completionsToday >= habit.goalCount) {
-          // Goal already met today, no more points
-          nextCompletionPoints = 0;
-        } else {
-          // Goal not yet met, show points for next completion that meets the goal
-          const lastNonMissed = habit.completions
-            .filter((c) => !c.isMissedCompletion)
-            .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
-
-          if (lastNonMissed) {
-            const lastNonMissedDate = new Date(lastNonMissed.completedAt);
-            const today = new Date(now);
-            const daysDiff = Math.floor((today.getTime() - lastNonMissedDate.getTime()) / (1000 * 60 * 60 * 24));
-            nextCompletionPoints = Math.max(1, daysDiff);
-          } else {
-            nextCompletionPoints = 1;
-          }
-        }
+        const nextCompletionPoints = await calculateNextCompletionPoints(
+          app,
+          habit.id,
+          habit.goalCount,
+          completionsToday
+        );
 
         return {
           id: habit.id,
@@ -98,7 +86,7 @@ export function registerDashboardRoutes(app: App) {
             isMissedCompletion: c.isMissedCompletion,
           })),
         };
-      });
+      }));
 
       // Get last 3 achievements
       const recentAchievements = await app.db.query.achievements.findMany({
