@@ -65,19 +65,19 @@ export function HabitsOverview({ habits }: HabitsOverviewProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: '#1e3a8a',
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#2563eb',
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
     elevation: 2,
   },
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: '#ffffff',
     marginBottom: 12,
   },
   scrollView: {
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 2,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: 4,
   },
   habitRow: {
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   colorIndicator: {
     width: 4,
@@ -119,13 +119,13 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     textTransform: 'uppercase',
   },
   habitName: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: '#ffffff',
   },
   statValue: {
     fontSize: 18,

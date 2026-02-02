@@ -65,20 +65,21 @@ export function HabitCard({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statsRow}>
-        {/* Current Streak */}
+      {/* Streak Stats Row */}
+      <View style={styles.streakRow}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Current</Text>
           <Text style={[styles.statValue, { color: habit.color }]}>{currentStreakText}</Text>
         </View>
 
-        {/* Max Streak */}
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Best</Text>
           <Text style={[styles.statValue, { color: habit.color }]}>{maxStreakText}</Text>
         </View>
+      </View>
 
-        {/* 7-Day Mini Calendar */}
+      {/* 7-Day Mini Calendar and Add Button Row */}
+      <View style={styles.calendarRow}>
         <View style={styles.miniCalendar}>
           {last7Days.map((date, index) => {
             const dayNum = date.getDate().toString();
@@ -100,7 +101,6 @@ export function HabitCard({
           })}
         </View>
 
-        {/* Quick Add Button */}
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: habit.color }]}
           onPress={onComplete}
@@ -151,14 +151,15 @@ const styles = StyleSheet.create({
   calendarButton: {
     padding: 4,
   },
-  statsRow: {
+  streakRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 24,
+    marginBottom: 12,
   },
   statItem: {
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 60,
   },
   statLabel: {
     fontSize: 12,
@@ -169,15 +170,21 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  calendarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   miniCalendar: {
     flexDirection: 'row',
     gap: 4,
     flex: 1,
-    justifyContent: 'center',
   },
   dayBox: {
     alignItems: 'center',
-    width: 28,
+    flex: 1,
+    maxWidth: 32,
   },
   dayNumber: {
     fontSize: 10,
