@@ -283,7 +283,7 @@ export default function HomeScreen() {
     }
   };
 
-  const recentCompletionsMap: Record<string, Array<{ completedAt: string; isMissedCompletion?: boolean }>> = {};
+  const recentCompletionsMap: Record<string, { completedAt: string; isMissedCompletion?: boolean }[]> = {};
   const todayCompletionCountsMap: Record<string, number> = {};
   if (dashboard) {
     dashboard.habits.forEach(h => {

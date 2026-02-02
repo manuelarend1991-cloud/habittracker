@@ -35,7 +35,7 @@ export interface Achievement {
 }
 
 export interface DashboardData {
-  habits: Array<{
+  habits: {
     id: string;
     name: string;
     color: string;
@@ -45,13 +45,13 @@ export interface DashboardData {
     totalPoints: number;
     pointStreakReset?: boolean;
     lastMissedCompletionDate?: string | null;
-    recentCompletions: Array<{
+    recentCompletions: {
       id: string;
       completedAt: string;
       points: number;
       isMissedCompletion?: boolean;
-    }>;
-  }>;
+    }[];
+  }[];
   totalPoints: number;
   recentAchievements: Achievement[];
 }

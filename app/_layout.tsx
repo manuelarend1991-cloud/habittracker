@@ -45,7 +45,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       console.log('[AuthGuard] User authenticated, redirecting to app');
       router.replace('/(tabs)/(home)');
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   // Show loading screen while checking auth
   if (loading) {

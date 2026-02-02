@@ -46,7 +46,7 @@ export function PointsNotification({ points, visible, onHide }: PointsNotificati
       );
       opacity.value = withDelay(2500, withSpring(0));
     }
-  }, [visible, points]);
+  }, [visible, points, translateY, opacity, scale, onHide]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
