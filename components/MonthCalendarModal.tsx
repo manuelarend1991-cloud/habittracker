@@ -203,6 +203,8 @@ export function MonthCalendarModal({
     );
   };
 
+  const confirmMessageText = 'Are you sure you want to add a missed completion? This will cost 1.5x the points you would have earned at that streak level, making it more expensive than completing on time.';
+
   return (
     <Modal
       visible={visible}
@@ -288,7 +290,7 @@ export function MonthCalendarModal({
         <ConfirmModal
           visible={confirmModalVisible}
           title="Add Missed Completion"
-          message="Are you sure you want to add a missed completion? This will cost 10 points."
+          message={confirmMessageText}
           confirmText="Yes, add it"
           cancelText="Cancel"
           onConfirm={handleConfirmAddCompletion}

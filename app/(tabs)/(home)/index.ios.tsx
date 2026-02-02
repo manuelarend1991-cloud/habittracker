@@ -17,6 +17,7 @@ import { HabitCard } from '@/components/HabitCard';
 import { HabitsOverview } from '@/components/HabitsOverview';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { AlertModal } from '@/components/AlertModal';
+import { PointsNotification } from '@/components/PointsNotification';
 import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
 import { EditHabitModal } from '@/components/EditHabitModal';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -57,6 +58,9 @@ export default function HomeScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
 
+  const [pointsNotificationVisible, setPointsNotificationVisible] = useState(false);
+  const [pointsEarned, setPointsEarned] = useState(0);
+
   // Calculate today's completion count for each habit - MUST BE DEFINED BEFORE USE
   const getTodayCompletionCount = (habitId: string): number => {
     const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
@@ -87,12 +91,22 @@ export default function HomeScreen() {
     setAlertVisible(true);
   };
 
+  const showPointsNotification = (points: number) => {
+    console.log('[HomeScreen] Showing points notification:', points);
+    setPointsEarned(points);
+    setPointsNotificationVisible(true);
+  };
+
   const handleAddCompletion = async (habitId: string) => {
     console.log('[HomeScreen] User tapped quick add button for habit:', habitId);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await addCompletion(habitId);
-      showAlert('Success!', 'Habit completed for today', 'success');
+      const response = await addCompletion(habitId);
+      
+      // Show points notification
+      if (response && response.completion && response.completion.points) {
+        showPointsNotification(response.completion.points);
+      }
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add completion:', err);
       
@@ -141,12 +155,18 @@ export default function HomeScreen() {
     console.log('[HomeScreen] Adding past completion for date:', date);
     
     try {
-      await addPastCompletion(selectedHabit.id, date);
+      const response = await addPastCompletion(selectedHabit.id, date);
       
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      showAlert('Success!', 'Past completion added. 10 points deducted.', 'success');
+      // Extract cost from response message or use default
+      let costMessage = 'Points deducted.';
+      if (response && typeof response === 'object' && 'message' in response) {
+        costMessage = (response as any).message || costMessage;
+      }
+      
+      showAlert('Success!', `Past completion added. ${costMessage}`, 'success');
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
@@ -261,6 +281,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ),
         }}
+      />
+
+      <PointsNotification
+        points={pointsEarned}
+        visible={pointsNotificationVisible}
+        onHide={() => setPointsNotificationVisible(false)}
       />
 
       <ScrollView

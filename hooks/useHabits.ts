@@ -41,7 +41,12 @@ export function useHabits() {
     console.log('[useHabits] Adding completion for habit:', habitId);
     try {
       const completedAt = new Date().toISOString();
-      const response = await authenticatedPost<{ completion: HabitCompletion; updatedHabit: Habit }>(
+      const response = await authenticatedPost<{ 
+        completion: HabitCompletion; 
+        updatedHabit: Habit;
+        pointsEarned?: number;
+        message?: string;
+      }>(
         `/api/habits/${habitId}/complete`,
         { completedAt }
       );
@@ -94,7 +99,13 @@ export function useHabits() {
     console.log('[useHabits] Adding past completion for habit:', habitId, 'date:', date);
     try {
       const completedAt = date.toISOString();
-      const response = await authenticatedPost<{ completion: HabitCompletion; updatedHabit: Habit }>(
+      const response = await authenticatedPost<{ 
+        completion: HabitCompletion; 
+        updatedHabit: Habit;
+        pointsEarned?: number;
+        pointsCost?: number;
+        message?: string;
+      }>(
         `/api/habits/${habitId}/complete-past`,
         { completedAt }
       );

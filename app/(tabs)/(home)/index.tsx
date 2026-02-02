@@ -17,6 +17,7 @@ import { HabitCard } from '@/components/HabitCard';
 import { HabitsOverview } from '@/components/HabitsOverview';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { AlertModal } from '@/components/AlertModal';
+import { PointsNotification } from '@/components/PointsNotification';
 import { AddHabitModal, ConfirmModal } from '@/components/AddHabitModal';
 import { EditHabitModal } from '@/components/EditHabitModal';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -57,6 +58,9 @@ export default function HomeScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info');
 
+  const [pointsNotificationVisible, setPointsNotificationVisible] = useState(false);
+  const [pointsEarned, setPointsEarned] = useState(0);
+
   // Calculate today's completion count for each habit - MUST BE DEFINED BEFORE USE
   const getTodayCompletionCount = (habitId: string): number => {
     const dashboardHabit = dashboard?.habits.find(h => h.id === habitId);
@@ -87,12 +91,35 @@ export default function HomeScreen() {
     setAlertVisible(true);
   };
 
+  const showPointsNotification = (points: number) => {
+    console.log('[HomeScreen] Showing points notification:', points);
+    setPointsEarned(points);
+    setPointsNotificationVisible(true);
+  };
+
   const handleAddCompletion = async (habitId: string) => {
     console.log('[HomeScreen] User tapped quick add button for habit:', habitId);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await addCompletion(habitId);
-      showAlert('Success!', 'Habit completed for today', 'success');
+      const response = await addCompletion(habitId);
+      
+      // Show points notification - check multiple sources for points earned
+      let pointsToShow = 0;
+      if (response) {
+        // First check if pointsEarned is in the response
+        if (response.pointsEarned !== undefined) {
+          pointsToShow = response.pointsEarned;
+        } 
+        // Fallback to completion.points
+        else if (response.completion && response.completion.points !== undefined) {
+          pointsToShow = response.completion.points;
+        }
+        
+        if (pointsToShow > 0) {
+          console.log('[HomeScreen] Showing points notification:', pointsToShow);
+          showPointsNotification(pointsToShow);
+        }
+      }
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add completion:', err);
       
@@ -141,12 +168,27 @@ export default function HomeScreen() {
     console.log('[HomeScreen] Adding past completion for date:', date);
     
     try {
-      await addPastCompletion(selectedHabit.id, date);
+      const response = await addPastCompletion(selectedHabit.id, date);
       
       const updatedCompletions = await fetchCompletions(selectedHabit.id);
       setHabitCompletions(updatedCompletions);
       
-      showAlert('Success!', 'Past completion added. 10 points deducted.', 'success');
+      // Build a detailed message about the cost
+      let costMessage = 'Points deducted.';
+      if (response && typeof response === 'object') {
+        // Check if we have pointsCost in the response
+        if ('pointsCost' in response && response.pointsCost !== undefined) {
+          const cost = response.pointsCost;
+          costMessage = `${cost} points deducted (1.5x the points you would have earned).`;
+          console.log('[HomeScreen] Past completion cost:', cost, 'points');
+        } 
+        // Fallback to message from backend
+        else if ('message' in response && response.message) {
+          costMessage = response.message;
+        }
+      }
+      
+      showAlert('Success!', `Past completion added. ${costMessage}`, 'success');
     } catch (err: any) {
       console.error('[HomeScreen] Failed to add past completion:', err);
       
@@ -261,6 +303,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ),
         }}
+      />
+
+      <PointsNotification
+        points={pointsEarned}
+        visible={pointsNotificationVisible}
+        onHide={() => setPointsNotificationVisible(false)}
       />
 
       <ScrollView
