@@ -22,7 +22,6 @@ import { Habit, HabitCompletion } from '@/types/habit';
 import { PointsNotification } from '@/components/PointsNotification';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { AlertModal } from '@/components/AlertModal';
-import { useAuth } from '@/contexts/AuthContext';
 import { useWidget } from '@/contexts/WidgetContext';
 import { IconSymbol } from '@/components/IconSymbol';
 
@@ -91,10 +90,8 @@ export default function HomeScreen() {
     type: 'info',
   });
   const [infoModalVisible, setInfoModalVisible] = useState(false);
-  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
 
   const router = useRouter();
-  const { signOut } = useAuth();
   const { updateWidgetData } = useWidget();
   const {
     habits,
@@ -286,11 +283,6 @@ export default function HomeScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    console.log('[HomeScreen] User tapped logout button');
-    setLogoutConfirmVisible(true);
-  };
-
   const handleShowAllBadges = () => {
     console.log('[HomeScreen] User tapped Show All Badges button');
     router.push('/badges');
@@ -334,14 +326,6 @@ export default function HomeScreen() {
                 <IconSymbol 
                   ios_icon_name="info.circle" 
                   android_material_icon_name="info" 
-                  size={24} 
-                  color={colors.text} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleLogout}>
-                <IconSymbol 
-                  ios_icon_name="rectangle.portrait.and.arrow.right" 
-                  android_material_icon_name="logout" 
                   size={24} 
                   color={colors.text} 
                 />
@@ -511,26 +495,6 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      <ConfirmModal
-        visible={logoutConfirmVisible}
-        title="Logout"
-        message="Are you sure you want to logout?"
-        confirmText="Logout"
-        cancelText="Cancel"
-        destructive
-        onConfirm={async () => {
-          setLogoutConfirmVisible(false);
-          try {
-            await signOut();
-            router.replace('/auth');
-          } catch (err) {
-            console.error('[HomeScreen] Error during logout:', err);
-            showAlert('Error', 'Failed to logout. Please try again.', 'error');
-          }
-        }}
-        onCancel={() => setLogoutConfirmVisible(false)}
-      />
     </View>
   );
 }

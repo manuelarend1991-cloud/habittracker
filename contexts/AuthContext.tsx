@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
@@ -69,9 +70,10 @@ function openOAuthPopup(provider: string): Promise<string> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Silently check for existing session without blocking app startup
     fetchUser();
 
     // Listen for deep links (e.g. from social auth redirects)
@@ -96,7 +98,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      setLoading(true);
       const session = await authClient.getSession();
       if (session?.data?.user) {
         setUser(session.data.user as User);
@@ -111,8 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);
-    } finally {
-      setLoading(false);
     }
   };
 

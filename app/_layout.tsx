@@ -2,11 +2,11 @@
 import "react-native-reanimated";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert, View, ActivityIndicator } from "react-native";
+import { useColorScheme, Alert } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -16,7 +16,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 // Note: Error logging is auto-initialized via index.ts import
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -25,40 +25,6 @@ SplashScreen.preventAutoHideAsync();
 export const unstable_settings = {
   initialRouteName: "(tabs)", // Ensure any route can link back to `/`
 };
-
-// Auth guard component
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const segments = useSegments();
-
-  useEffect(() => {
-    if (loading) return;
-
-    const inAuthGroup = segments[0] === 'auth' || segments[0] === 'auth-popup' || segments[0] === 'auth-callback';
-
-    if (!user && !inAuthGroup) {
-      // User is not signed in and not on auth screen, redirect to auth
-      console.log('[AuthGuard] User not authenticated, redirecting to /auth');
-      router.replace('/auth');
-    } else if (user && inAuthGroup) {
-      // User is signed in but on auth screen, redirect to app
-      console.log('[AuthGuard] User authenticated, redirecting to app');
-      router.replace('/(tabs)/(home)');
-    }
-  }, [user, loading, segments, router]);
-
-  // Show loading screen while checking auth
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <ActivityIndicator size="large" color="#0a84ff" />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
-}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -122,16 +88,18 @@ export default function RootLayout() {
           <AuthProvider>
             <WidgetProvider>
               <GestureHandlerRootView>
-                <AuthGuard>
-                  <Stack>
-                    {/* Auth screens */}
-                    <Stack.Screen name="auth" options={{ headerShown: false }} />
-                    <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
-                    <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
-                    {/* Main app with tabs */}
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  </Stack>
-                </AuthGuard>
+                <Stack>
+                  {/* Auth screens (optional, not enforced) */}
+                  <Stack.Screen name="auth" options={{ headerShown: false }} />
+                  <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
+                  <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+                  {/* Main app with tabs */}
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  {/* Badges screen */}
+                  <Stack.Screen name="badges" options={{ headerShown: false }} />
+                  {/* 404 screen */}
+                  <Stack.Screen name="+not-found" />
+                </Stack>
                 <SystemBars style={"auto"} />
               </GestureHandlerRootView>
             </WidgetProvider>
