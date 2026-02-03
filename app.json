@@ -1,8 +1,7 @@
-
 {
   "expo": {
     "name": "Habit Tracker",
-    "slug": "habittracker",
+    "slug": "Habit Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -20,7 +19,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["habittracker"]
+            "CFBundleURLSchemes": [
+              "habittracker"
+            ]
           }
         ]
       },
@@ -53,7 +54,7 @@
         }
       ]
     ],
-    "scheme": "habittracker",
+    "scheme": "Habit Tracker",
     "experiments": {
       "typedRoutes": true
     },

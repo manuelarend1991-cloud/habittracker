@@ -236,11 +236,20 @@ export default function HomeScreen() {
     console.log('[HomeScreen] User creating new habit:', { name, color, goalCount, goalPeriodDays, icon });
     try {
       await createHabit(name, color, goalCount, goalPeriodDays, icon);
+      console.log('[HomeScreen] Habit created successfully, closing modal');
+      // Close modal first, then show success alert
       setAddModalVisible(false);
-      showAlert('Success', 'Habit created successfully!', 'success');
-    } catch (err) {
+      // Small delay to ensure modal closes before showing alert
+      setTimeout(() => {
+        showAlert('Success', 'Habit created successfully!', 'success');
+      }, 100);
+    } catch (err: any) {
       console.error('[HomeScreen] Error creating habit:', err);
-      showAlert('Error', 'Failed to create habit. Please try again.', 'error');
+      // Extract error message from the error object
+      const errorMessage = err?.message || err?.data?.error || 'Failed to create habit. Please try again.';
+      console.error('[HomeScreen] Error message:', errorMessage);
+      // Don't close modal on error - let the modal handle it
+      throw err;
     }
   };
 

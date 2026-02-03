@@ -167,8 +167,10 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
     try {
       setLoading(true);
       setError(null);
+      console.log('[AddHabitModal] Calling onAdd with:', { name: name.trim(), selectedColor, count, period, selectedIcon });
       await onAdd(name.trim(), selectedColor, count, period, selectedIcon);
       
+      console.log('[AddHabitModal] Habit added successfully, resetting form');
       // Reset form
       setName('');
       setGoalCount('1');
@@ -176,10 +178,23 @@ export function AddHabitModal({ visible, onClose, onAdd }: AddHabitModalProps) {
       setStreakRequiredDays('2');
       setSelectedColor(habitColors[0]);
       setSelectedIcon('⭐');
-      onClose();
-    } catch (err) {
+      setError(null);
+      // Don't close modal here - let parent handle it
+    } catch (err: any) {
       console.error('[AddHabitModal] Error adding habit:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create habit');
+      // Extract detailed error message
+      let errorMessage = 'Failed to create habit. Please try again.';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.data?.error) {
+        errorMessage = err.data.error;
+      } else if (err?.status) {
+        errorMessage = `Server error (${err.status}). Please try again.`;
+      }
+      
+      console.error('[AddHabitModal] Displaying error:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
