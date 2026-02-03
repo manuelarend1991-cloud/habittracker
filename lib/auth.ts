@@ -1,3 +1,4 @@
+
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
@@ -6,7 +7,7 @@ import Constants from "expo-constants";
 
 const API_URL = "https://ncmxmu2vyz9chaqdaspmsugnxfhddrfa.app.specular.dev";
 
-export const BEARER_TOKEN_KEY = "kinetic-goals_bearer_token";
+export const BEARER_TOKEN_KEY = "habittracker_bearer_token";
 
 // Platform-specific storage: localStorage for web, SecureStore for native
 const storage = Platform.OS === "web"
@@ -21,8 +22,8 @@ export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: [
     expoClient({
-      scheme: "kinetic-goals",
-      storagePrefix: "kinetic-goals",
+      scheme: "habittracker",
+      storagePrefix: "habittracker",
       storage,
     }),
   ],

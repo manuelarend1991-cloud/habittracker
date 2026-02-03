@@ -1,7 +1,8 @@
+
 {
   "expo": {
     "name": "Habit Tracker",
-    "slug": "Habit Tracker",
+    "slug": "habittracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -16,7 +17,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["habittracker"]
+          }
+        ]
       },
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -47,7 +53,7 @@
         }
       ]
     ],
-    "scheme": "Habit Tracker",
+    "scheme": "habittracker",
     "experiments": {
       "typedRoutes": true
     },
