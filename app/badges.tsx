@@ -11,7 +11,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { authenticatedGet } from '@/utils/api';
+import { apiGet } from '@/utils/api';
 
 interface AchievementData {
   type: string;
@@ -36,7 +36,7 @@ export default function BadgesScreen() {
     console.log('[BadgesScreen] Fetching all achievements...');
     try {
       setLoading(true);
-      const data = await authenticatedGet<AchievementData[]>('/api/achievements/available');
+      const data = await apiGet<AchievementData[]>('/api/achievements/available');
       console.log('[BadgesScreen] Fetched achievements:', data.length);
       setAchievements(data);
       setError(null);

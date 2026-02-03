@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Habit, HabitCompletion, DashboardData } from '@/types/habit';
-import { authenticatedGet, authenticatedPost, authenticatedDelete, authenticatedPut } from '@/utils/api';
+import { apiGet, apiPost, apiDelete, apiPut } from '@/utils/api';
 
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -13,7 +13,7 @@ export function useHabits() {
     console.log('[useHabits] Fetching habits...');
     try {
       setLoading(true);
-      const data = await authenticatedGet<Habit[]>('/api/habits');
+      const data = await apiGet<Habit[]>('/api/habits');
       console.log('[useHabits] Fetched habits:', data);
       setHabits(data);
       setError(null);
@@ -29,7 +29,7 @@ export function useHabits() {
   const fetchDashboard = useCallback(async () => {
     console.log('[useHabits] Fetching dashboard data...');
     try {
-      const data = await authenticatedGet<DashboardData>('/api/dashboard');
+      const data = await apiGet<DashboardData>('/api/dashboard');
       console.log('[useHabits] Fetched dashboard:', data);
       
       // Log missed completions for debugging
@@ -50,7 +50,7 @@ export function useHabits() {
     console.log('[useHabits] Adding completion for habit:', habitId);
     try {
       const completedAt = new Date().toISOString();
-      const response = await authenticatedPost<{ 
+      const response = await apiPost<{ 
         completion: HabitCompletion; 
         updatedHabit: Habit;
         pointsEarned?: number;
@@ -89,7 +89,7 @@ export function useHabits() {
     console.log('[useHabits] Removing last completion for habit:', habitId);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const response = await authenticatedDelete<{ updatedHabit: Habit }>(
+      const response = await apiDelete<{ updatedHabit: Habit }>(
         `/api/habits/${habitId}/complete-today`
       );
       console.log('[useHabits] Completion removed:', response);
@@ -112,7 +112,7 @@ export function useHabits() {
     console.log('[useHabits] Adding past completion for habit:', habitId, 'date:', date);
     try {
       const completedAt = date.toISOString();
-      const response = await authenticatedPost<{ 
+      const response = await apiPost<{ 
         completion: HabitCompletion; 
         updatedHabit: Habit;
         pointsEarned?: number;
@@ -152,7 +152,7 @@ export function useHabits() {
   const createHabit = useCallback(async (name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => {
     console.log('[useHabits] Creating habit:', { name, color, goalCount, goalPeriodDays, icon });
     try {
-      const newHabit = await authenticatedPost<Habit>('/api/habits', {
+      const newHabit = await apiPost<Habit>('/api/habits', {
         name,
         color,
         goalCount,
@@ -173,7 +173,7 @@ export function useHabits() {
   const updateHabit = useCallback(async (habitId: string, name: string, color: string, goalCount: number, goalPeriodDays: number, icon: string) => {
     console.log('[useHabits] Updating habit:', habitId, { name, color, goalCount, goalPeriodDays, icon });
     try {
-      const updatedHabit = await authenticatedPut<Habit>(`/api/habits/${habitId}`, {
+      const updatedHabit = await apiPut<Habit>(`/api/habits/${habitId}`, {
         name,
         color,
         icon,
@@ -196,7 +196,7 @@ export function useHabits() {
   const deleteHabit = useCallback(async (habitId: string) => {
     console.log('[useHabits] Deleting habit:', habitId);
     try {
-      await authenticatedDelete(`/api/habits/${habitId}`);
+      await apiDelete(`/api/habits/${habitId}`);
       console.log('[useHabits] Habit deleted');
       
       setHabits(prevHabits => prevHabits.filter(h => h.id !== habitId));
@@ -216,7 +216,7 @@ export function useHabits() {
   const fetchCompletions = useCallback(async (habitId: string) => {
     console.log('[useHabits] Fetching completions for habit:', habitId);
     try {
-      const completions = await authenticatedGet<HabitCompletion[]>(`/api/habits/${habitId}/completions`);
+      const completions = await apiGet<HabitCompletion[]>(`/api/habits/${habitId}/completions`);
       console.log('[useHabits] Fetched completions:', completions);
       return completions;
     } catch (err) {
