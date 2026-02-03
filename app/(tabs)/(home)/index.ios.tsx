@@ -446,18 +446,20 @@ export default function HomeScreen() {
         habit={editingHabit}
       />
 
-      <MonthCalendarModal
-        visible={calendarModalVisible}
-        onClose={() => {
-          setCalendarModalVisible(false);
-          setSelectedHabit(null);
-          setCompletions([]);
-        }}
-        habit={selectedHabit!}
-        completions={completions}
-        onAddCompletion={handleAddPastCompletion}
-        loading={loadingCompletions}
-      />
+      {selectedHabit && (
+        <MonthCalendarModal
+          visible={calendarModalVisible}
+          onClose={() => {
+            setCalendarModalVisible(false);
+            setSelectedHabit(null);
+            setCompletions([]);
+          }}
+          habit={selectedHabit}
+          completions={completions}
+          onAddCompletion={handleAddPastCompletion}
+          loading={loadingCompletions}
+        />
+      )}
 
       <PointsNotification
         visible={pointsNotification.visible}
