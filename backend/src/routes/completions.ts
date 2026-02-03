@@ -3,6 +3,23 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, gte, lt, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 
+// Default user ID for unauthenticated users
+const DEFAULT_USER_ID = 'anonymous-user';
+
+// Helper function to get user ID - uses authenticated user if available, otherwise returns default
+async function getUserId(request: FastifyRequest): Promise<string> {
+  try {
+    // Try to get user from request context (set by Better Auth middleware)
+    const user = (request as any).user;
+    if (user?.id) {
+      return user.id;
+    }
+  } catch (error) {
+    // No valid session, use default
+  }
+  return DEFAULT_USER_ID;
+}
+
 // Calculate points based on streak length (points = streak length, minimum 1)
 function calculatePoints(streakLength: number): number {
   return Math.max(1, streakLength);
@@ -194,45 +211,41 @@ async function checkAndUnlockAchievements(
 }
 
 export function registerCompletionRoutes(app: App) {
-  const requireAuth = app.requireAuth();
-
-  // GET /api/habits/:habitId/completions - Get completions for a habit
+  // GET /api/habits/:habitId/completions - Get completions for a habit (works with or without authentication)
   app.fastify.get('/api/habits/:habitId/completions', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { habitId } = request.params as { habitId: string };
 
-    app.logger.info({ userId: session.user.id, habitId }, 'Fetching completions');
+    app.logger.info({ userId, habitId }, 'Fetching completions');
 
     try {
       const completions = await app.db.query.habitCompletions.findMany({
         where: eq(schema.habitCompletions.habitId, habitId),
       });
 
-      app.logger.info({ userId: session.user.id, habitId, count: completions.length }, 'Completions fetched');
+      app.logger.info({ userId, habitId, count: completions.length }, 'Completions fetched');
       return completions;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to fetch completions');
+      app.logger.error({ err: error, userId, habitId }, 'Failed to fetch completions');
       throw error;
     }
   });
 
-  // POST /api/habits/:habitId/complete - Record a completion
+  // POST /api/habits/:habitId/complete - Record a completion (works with or without authentication)
   app.fastify.post('/api/habits/:habitId/complete', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { habitId } = request.params as { habitId: string };
     const body = request.body as { completedAt?: string };
 
-    app.logger.info({ userId: session.user.id, habitId, body }, 'Recording habit completion');
+    app.logger.info({ userId, habitId, body }, 'Recording habit completion');
 
     try {
       // Get the habit
@@ -241,12 +254,12 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (!habit) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Habit not found');
+        app.logger.warn({ userId, habitId }, 'Habit not found');
         return reply.status(404).send({ error: 'Habit not found' });
       }
 
-      if (habit.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Unauthorized completion attempt');
+      if (habit.userId !== userId) {
+        app.logger.warn({ userId, habitId }, 'Unauthorized completion attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -278,7 +291,7 @@ export function registerCompletionRoutes(app: App) {
         const completedAtDate = new Date(completedAt);
         points = await calculateCurrentStreakDayNumber(app, completedAtDate, habitId);
         app.logger.info(
-          { userId: session.user.id, habitId, streakDayNumber: points, completionsToday, goalCount: habit.goalCount },
+          { userId, habitId, streakDayNumber: points, completionsToday, goalCount: habit.goalCount },
           'Points calculated based on current streak day number'
         );
       }
@@ -319,7 +332,7 @@ export function registerCompletionRoutes(app: App) {
       // Record completion
       const [completion] = await app.db.insert(schema.habitCompletions).values({
         habitId,
-        userId: session.user.id,
+        userId,
         completedAt,
         points,
       }).returning();
@@ -342,17 +355,17 @@ export function registerCompletionRoutes(app: App) {
 
       // Check for achievement unlocks (only if points were awarded)
       if (points > 0) {
-        await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
+        await checkAndUnlockAchievements(app, userId, habitId, updatedHabit);
       }
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, completionsToday, goalCount: habit.goalCount, goalMet, pointsEarned: points, streak: updatedHabit.currentStreak },
+        { userId, habitId, completionId: completion.id, completionsToday, goalCount: habit.goalCount, goalMet, pointsEarned: points, streak: updatedHabit.currentStreak },
         'Habit completion recorded'
       );
 
       return { completion, updatedHabit, pointsEarned: points, completionsToday: completionsToday + 1, goalCount: habit.goalCount, goalMet };
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record completion');
+      app.logger.error({ err: error, userId, habitId }, 'Failed to record completion');
       throw error;
     }
   });
@@ -362,18 +375,17 @@ export function registerCompletionRoutes(app: App) {
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { habitId } = request.params as { habitId: string };
     const body = request.body as { completedAt: string };
 
-    app.logger.info({ userId: session.user.id, habitId, body }, 'Recording past habit completion');
+    app.logger.info({ userId, habitId, body }, 'Recording past habit completion');
 
     try {
       // Validate completedAt is provided
       if (!body.completedAt) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Missing completedAt in request');
+        app.logger.warn({ userId, habitId }, 'Missing completedAt in request');
         return reply.status(400).send({ error: 'completedAt is required' });
       }
 
@@ -381,7 +393,7 @@ export function registerCompletionRoutes(app: App) {
 
       // Validate date is valid
       if (isNaN(completedAt.getTime())) {
-        app.logger.warn({ userId: session.user.id, habitId, completedAt: body.completedAt }, 'Invalid date format');
+        app.logger.warn({ userId, habitId, completedAt: body.completedAt }, 'Invalid date format');
         return reply.status(400).send({ error: 'Invalid date format' });
       }
 
@@ -391,7 +403,7 @@ export function registerCompletionRoutes(app: App) {
       today.setUTCHours(23, 59, 59, 999);
 
       if (completedAt > today) {
-        app.logger.warn({ userId: session.user.id, habitId, completedAt }, 'Attempted to add future completion');
+        app.logger.warn({ userId, habitId, completedAt }, 'Attempted to add future completion');
         return reply.status(400).send({ error: 'Date must be in the past' });
       }
 
@@ -401,12 +413,12 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (!habit) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Habit not found');
+        app.logger.warn({ userId, habitId }, 'Habit not found');
         return reply.status(404).send({ error: 'Habit not found' });
       }
 
-      if (habit.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Unauthorized past completion attempt');
+      if (habit.userId !== userId) {
+        app.logger.warn({ userId, habitId }, 'Unauthorized past completion attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -416,7 +428,7 @@ export function registerCompletionRoutes(app: App) {
       const userHabits = await app.db
         .select()
         .from(schema.habits)
-        .where(eq(schema.habits.userId, session.user.id));
+        .where(eq(schema.habits.userId, userId));
 
       let userTotalPoints = 0;
       userHabits.forEach((h) => {
@@ -424,7 +436,7 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (userTotalPoints < PAST_COMPLETION_COST) {
-        app.logger.warn({ userId: session.user.id, habitId, userTotalPoints }, 'Insufficient total points for past completion');
+        app.logger.warn({ userId, habitId, userTotalPoints }, 'Insufficient total points for past completion');
         return reply.status(400).send({ error: 'Not enough points for this!' });
       }
 
@@ -444,14 +456,14 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (existingCompletion) {
-        app.logger.warn({ userId: session.user.id, habitId, completedAt }, 'Completion already exists for this date');
+        app.logger.warn({ userId, habitId, completedAt }, 'Completion already exists for this date');
         return reply.status(409).send({ error: 'Completion already exists for this date' });
       }
 
       // Record completion with 0 points (missed completion earns no points)
       const [completion] = await app.db.insert(schema.habitCompletions).values({
         habitId,
-        userId: session.user.id,
+        userId,
         completedAt,
         points: 0,
         isMissedCompletion: true,
@@ -505,10 +517,10 @@ export function registerCompletionRoutes(app: App) {
         .returning();
 
       // Check for achievement unlocks
-      await checkAndUnlockAchievements(app, session.user.id, habitId, updatedHabit);
+      await checkAndUnlockAchievements(app, userId, habitId, updatedHabit);
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: completion.id, pointsCost: PAST_COMPLETION_COST, streak: currentStreak, totalPoints },
+        { userId, habitId, completionId: completion.id, pointsCost: PAST_COMPLETION_COST, streak: currentStreak, totalPoints },
         'Past habit completion recorded with point deduction and streak reset'
       );
 
@@ -521,22 +533,21 @@ export function registerCompletionRoutes(app: App) {
         message: `Past completion added. ${PAST_COMPLETION_COST} points deducted. Your next completion will earn 1 point (streak point worthiness reset).`
       };
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to record past completion');
+      app.logger.error({ err: error, userId, habitId }, 'Failed to record past completion');
       throw error;
     }
   });
 
-  // DELETE /api/habits/:habitId/complete-today - Remove the most recent completion for today
+  // DELETE /api/habits/:habitId/complete-today - Remove the most recent completion for today (works with or without authentication)
   app.fastify.delete('/api/habits/:habitId/complete-today', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { habitId } = request.params as { habitId: string };
 
-    app.logger.info({ userId: session.user.id, habitId }, 'Removing today\'s completion');
+    app.logger.info({ userId, habitId }, 'Removing today\'s completion');
 
     try {
       // Get the habit
@@ -545,12 +556,12 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (!habit) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Habit not found');
+        app.logger.warn({ userId, habitId }, 'Habit not found');
         return reply.status(404).send({ error: 'Habit not found' });
       }
 
-      if (habit.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'Unauthorized completion removal attempt');
+      if (habit.userId !== userId) {
+        app.logger.warn({ userId, habitId }, 'Unauthorized completion removal attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -573,7 +584,7 @@ export function registerCompletionRoutes(app: App) {
         .orderBy(desc(schema.habitCompletions.createdAt));
 
       if (todayCompletions.length === 0) {
-        app.logger.warn({ userId: session.user.id, habitId }, 'No completions found for today');
+        app.logger.warn({ userId, habitId }, 'No completions found for today');
         return reply.status(404).send({ error: 'No completions found for today' });
       }
 
@@ -629,28 +640,27 @@ export function registerCompletionRoutes(app: App) {
         .returning();
 
       app.logger.info(
-        { userId: session.user.id, habitId, completionId: mostRecentCompletion.id, hasMissedCompletions: hasMissed },
+        { userId, habitId, completionId: mostRecentCompletion.id, hasMissedCompletions: hasMissed },
         'Today\'s completion removed and streaks recalculated'
       );
 
       return { updatedHabit };
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId }, 'Failed to remove today\'s completion');
+      app.logger.error({ err: error, userId, habitId }, 'Failed to remove today\'s completion');
       throw error;
     }
   });
 
-  // DELETE /api/completions/:id - Delete a completion
+  // DELETE /api/completions/:id - Delete a completion (works with or without authentication)
   app.fastify.delete('/api/completions/:id', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { id } = request.params as { id: string };
 
-    app.logger.info({ userId: session.user.id, completionId: id }, 'Deleting completion');
+    app.logger.info({ userId, completionId: id }, 'Deleting completion');
 
     try {
       // Get the completion
@@ -659,12 +669,12 @@ export function registerCompletionRoutes(app: App) {
       });
 
       if (!completion) {
-        app.logger.warn({ userId: session.user.id, completionId: id }, 'Completion not found');
+        app.logger.warn({ userId, completionId: id }, 'Completion not found');
         return reply.status(404).send({ error: 'Completion not found' });
       }
 
-      if (completion.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, completionId: id }, 'Unauthorized deletion attempt');
+      if (completion.userId !== userId) {
+        app.logger.warn({ userId, completionId: id }, 'Unauthorized deletion attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -724,10 +734,10 @@ export function registerCompletionRoutes(app: App) {
           .where(eq(schema.habits.id, habit.id));
       }
 
-      app.logger.info({ userId: session.user.id, completionId: id }, 'Completion deleted successfully');
+      app.logger.info({ userId, completionId: id }, 'Completion deleted successfully');
       return { success: true };
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, completionId: id }, 'Failed to delete completion');
+      app.logger.error({ err: error, userId, completionId: id }, 'Failed to delete completion');
       throw error;
     }
   });

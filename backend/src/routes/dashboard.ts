@@ -4,23 +4,38 @@ import { eq, desc, and, gte, lt } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import { calculateNextCompletionPoints } from './completions.js';
 
-export function registerDashboardRoutes(app: App) {
-  const requireAuth = app.requireAuth();
+// Default user ID for unauthenticated users
+const DEFAULT_USER_ID = 'anonymous-user';
 
-  // GET /api/dashboard - Get dashboard summary
+// Helper function to get user ID - uses authenticated user if available, otherwise returns default
+async function getUserId(request: FastifyRequest): Promise<string> {
+  try {
+    // Try to get user from request context (set by Better Auth middleware)
+    const user = (request as any).user;
+    if (user?.id) {
+      return user.id;
+    }
+  } catch (error) {
+    // No valid session, use default
+  }
+  return DEFAULT_USER_ID;
+}
+
+export function registerDashboardRoutes(app: App) {
+
+  // GET /api/dashboard - Get dashboard summary (works with or without authentication)
   app.fastify.get('/api/dashboard', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
-    app.logger.info({ userId: session.user.id }, 'Fetching dashboard');
+    app.logger.info({ userId }, 'Fetching dashboard');
 
     try {
       // Get all habits for user with completions
       const habits = await app.db.query.habits.findMany({
-        where: eq(schema.habits.userId, session.user.id),
+        where: eq(schema.habits.userId, userId),
         with: {
           completions: true,
         },
@@ -31,7 +46,7 @@ export function registerDashboardRoutes(app: App) {
       const habitRecords = await app.db
         .select()
         .from(schema.habits)
-        .where(eq(schema.habits.userId, session.user.id));
+        .where(eq(schema.habits.userId, userId));
 
       // Get total points from fresh data
       let totalPoints = 0;
@@ -90,7 +105,7 @@ export function registerDashboardRoutes(app: App) {
 
       // Get last 3 achievements
       const recentAchievements = await app.db.query.achievements.findMany({
-        where: eq(schema.achievements.userId, session.user.id),
+        where: eq(schema.achievements.userId, userId),
         orderBy: [desc(schema.achievements.unlockedAt)],
         limit: 3,
       });
@@ -110,13 +125,13 @@ export function registerDashboardRoutes(app: App) {
       };
 
       app.logger.info(
-        { userId: session.user.id, habitsCount: habits.length, totalPoints },
+        { userId, habitsCount: habits.length, totalPoints },
         'Dashboard fetched successfully'
       );
 
       return dashboard;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch dashboard');
+      app.logger.error({ err: error, userId }, 'Failed to fetch dashboard');
       throw error;
     }
   });

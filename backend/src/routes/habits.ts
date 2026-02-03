@@ -3,47 +3,61 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 
-export function registerHabitRoutes(app: App) {
-  const requireAuth = app.requireAuth();
+// Default user ID for unauthenticated users
+const DEFAULT_USER_ID = 'anonymous-user';
 
-  // GET /api/habits - Get all habits for authenticated user
+// Helper function to get user ID - uses authenticated user if available, otherwise returns default
+async function getUserId(request: FastifyRequest): Promise<string> {
+  try {
+    // Try to get user from request context (set by Better Auth middleware)
+    const user = (request as any).user;
+    if (user?.id) {
+      return user.id;
+    }
+  } catch (error) {
+    // No valid session, use default
+  }
+  return DEFAULT_USER_ID;
+}
+
+export function registerHabitRoutes(app: App) {
+
+  // GET /api/habits - Get all habits (works with or without authentication)
   app.fastify.get('/api/habits', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
-    app.logger.info({ userId: session.user.id }, 'Fetching habits for user');
+    app.logger.info({ userId }, 'Fetching habits for user');
 
     try {
       const userHabits = await app.db.query.habits.findMany({
-        where: eq(schema.habits.userId, session.user.id),
+        where: eq(schema.habits.userId, userId),
       });
 
-      app.logger.info({ userId: session.user.id, count: userHabits.length }, 'Habits fetched successfully');
+      app.logger.info({ userId, count: userHabits.length }, 'Habits fetched successfully');
       return userHabits;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch habits');
+      app.logger.error({ err: error, userId }, 'Failed to fetch habits');
       throw error;
     }
   });
 
-  // POST /api/habits - Create a new habit
+  // POST /api/habits - Create a new habit (works with or without authentication)
   app.fastify.post('/api/habits', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const body = request.body as { name: string; color: string; goalCount: number; goalPeriodDays: number; icon?: string };
 
-    app.logger.info({ userId: session.user.id, body }, 'Creating habit');
+    app.logger.info({ userId, body }, 'Creating habit');
 
     try {
       const [newHabit] = await app.db.insert(schema.habits).values({
-        userId: session.user.id,
+        userId,
         name: body.name,
         color: body.color,
         icon: body.icon || 'star',
@@ -54,31 +68,30 @@ export function registerHabitRoutes(app: App) {
         totalPoints: 0,
       }).returning();
 
-      app.logger.info({ userId: session.user.id, habitId: newHabit.id }, 'Habit created successfully');
+      app.logger.info({ userId, habitId: newHabit.id }, 'Habit created successfully');
       return newHabit;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, body }, 'Failed to create habit');
+      app.logger.error({ err: error, userId, body }, 'Failed to create habit');
       throw error;
     }
   });
 
-  // PUT /api/habits/:id - Update a habit
+  // PUT /api/habits/:id - Update a habit (works with or without authentication)
   app.fastify.put('/api/habits/:id', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { id } = request.params as { id: string };
     const body = request.body as { name?: string; color?: string; goalCount?: number; goalPeriodDays?: number; icon?: string };
 
-    app.logger.info({ userId: session.user.id, habitId: id, body }, 'Updating habit');
+    app.logger.info({ userId, habitId: id, body }, 'Updating habit');
 
     try {
       // Validate required fields
       if (!body.name || !body.color || body.goalCount === undefined || body.goalPeriodDays === undefined) {
-        app.logger.warn({ userId: session.user.id, habitId: id, body }, 'Missing required fields for habit update');
+        app.logger.warn({ userId, habitId: id, body }, 'Missing required fields for habit update');
         return reply.status(400).send({ error: 'All fields (name, color, goalCount, goalPeriodDays) are required' });
       }
 
@@ -88,12 +101,12 @@ export function registerHabitRoutes(app: App) {
       });
 
       if (!habit) {
-        app.logger.warn({ userId: session.user.id, habitId: id }, 'Habit not found');
+        app.logger.warn({ userId, habitId: id }, 'Habit not found');
         return reply.status(404).send({ error: 'Habit not found' });
       }
 
-      if (habit.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, habitId: id }, 'Unauthorized habit update attempt');
+      if (habit.userId !== userId) {
+        app.logger.warn({ userId, habitId: id }, 'Unauthorized habit update attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -108,25 +121,24 @@ export function registerHabitRoutes(app: App) {
         .where(eq(schema.habits.id, id))
         .returning();
 
-      app.logger.info({ userId: session.user.id, habitId: id }, 'Habit updated successfully');
+      app.logger.info({ userId, habitId: id }, 'Habit updated successfully');
       return updatedHabit;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId: id, body }, 'Failed to update habit');
+      app.logger.error({ err: error, userId, habitId: id, body }, 'Failed to update habit');
       throw error;
     }
   });
 
-  // DELETE /api/habits/:id - Delete a habit
+  // DELETE /api/habits/:id - Delete a habit (works with or without authentication)
   app.fastify.delete('/api/habits/:id', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
     const { id } = request.params as { id: string };
 
-    app.logger.info({ userId: session.user.id, habitId: id }, 'Deleting habit');
+    app.logger.info({ userId, habitId: id }, 'Deleting habit');
 
     try {
       // Find the habit and verify ownership
@@ -135,21 +147,21 @@ export function registerHabitRoutes(app: App) {
       });
 
       if (!habit) {
-        app.logger.warn({ userId: session.user.id, habitId: id }, 'Habit not found');
+        app.logger.warn({ userId, habitId: id }, 'Habit not found');
         return reply.status(404).send({ error: 'Habit not found' });
       }
 
-      if (habit.userId !== session.user.id) {
-        app.logger.warn({ userId: session.user.id, habitId: id }, 'Unauthorized habit deletion attempt');
+      if (habit.userId !== userId) {
+        app.logger.warn({ userId, habitId: id }, 'Unauthorized habit deletion attempt');
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
       await app.db.delete(schema.habits).where(eq(schema.habits.id, id));
 
-      app.logger.info({ userId: session.user.id, habitId: id }, 'Habit deleted successfully');
+      app.logger.info({ userId, habitId: id }, 'Habit deleted successfully');
       return { success: true };
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, habitId: id }, 'Failed to delete habit');
+      app.logger.error({ err: error, userId, habitId: id }, 'Failed to delete habit');
       throw error;
     }
   });

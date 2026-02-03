@@ -3,6 +3,23 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 
+// Default user ID for unauthenticated users
+const DEFAULT_USER_ID = 'anonymous-user';
+
+// Helper function to get user ID - uses authenticated user if available, otherwise returns default
+async function getUserId(request: FastifyRequest): Promise<string> {
+  try {
+    // Try to get user from request context (set by Better Auth middleware)
+    const user = (request as any).user;
+    if (user?.id) {
+      return user.id;
+    }
+  } catch (error) {
+    // No valid session, use default
+  }
+  return DEFAULT_USER_ID;
+}
+
 // Define all 50 possible achievements with emoji icons
 const ALL_ACHIEVEMENTS = [
   // Streak achievements
@@ -77,44 +94,40 @@ const ALL_ACHIEVEMENTS = [
 ];
 
 export function registerAchievementRoutes(app: App) {
-  const requireAuth = app.requireAuth();
-
-  // GET /api/achievements - Get all unlocked achievements for user
+  // GET /api/achievements - Get all unlocked achievements for user (works with or without authentication)
   app.fastify.get('/api/achievements', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
-    app.logger.info({ userId: session.user.id }, 'Fetching achievements');
+    app.logger.info({ userId }, 'Fetching achievements');
 
     try {
       const userAchievements = await app.db.query.achievements.findMany({
-        where: eq(schema.achievements.userId, session.user.id),
+        where: eq(schema.achievements.userId, userId),
       });
 
-      app.logger.info({ userId: session.user.id, count: userAchievements.length }, 'Achievements fetched');
+      app.logger.info({ userId, count: userAchievements.length }, 'Achievements fetched');
       return userAchievements;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch achievements');
+      app.logger.error({ err: error, userId }, 'Failed to fetch achievements');
       throw error;
     }
   });
 
-  // GET /api/achievements/available - Get all possible achievements with locked/unlocked status
+  // GET /api/achievements/available - Get all possible achievements with locked/unlocked status (works with or without authentication)
   app.fastify.get('/api/achievements/available', async (
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<any> => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    const userId = await getUserId(request);
 
-    app.logger.info({ userId: session.user.id }, 'Fetching available achievements');
+    app.logger.info({ userId }, 'Fetching available achievements');
 
     try {
       const unlockedAchievements = await app.db.query.achievements.findMany({
-        where: eq(schema.achievements.userId, session.user.id),
+        where: eq(schema.achievements.userId, userId),
       });
 
       const unlockedTypes = new Set(unlockedAchievements.map((a) => a.achievementType));
@@ -128,10 +141,10 @@ export function registerAchievementRoutes(app: App) {
         locked: !unlockedTypes.has(achievement.type),
       }));
 
-      app.logger.info({ userId: session.user.id, total: availableAchievements.length }, 'Available achievements fetched');
+      app.logger.info({ userId, total: availableAchievements.length }, 'Available achievements fetched');
       return availableAchievements;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch available achievements');
+      app.logger.error({ err: error, userId }, 'Failed to fetch available achievements');
       throw error;
     }
   });
