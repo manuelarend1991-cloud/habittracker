@@ -5,7 +5,8 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
-const API_URL = "https://ncmxmu2vyz9chaqdaspmsugnxfhddrfa.app.specular.dev";
+// Read backend URL from app.json configuration
+const API_URL = Constants.expoConfig?.extra?.backendUrl || "";
 
 export const BEARER_TOKEN_KEY = "habittracker_bearer_token";
 
