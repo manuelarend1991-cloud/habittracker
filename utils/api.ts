@@ -26,9 +26,13 @@ export const isBackendConfigured = (): boolean => {
 export const getBearerToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === "web") {
-      return localStorage.getItem(BEARER_TOKEN_KEY);
+      const token = localStorage.getItem(BEARER_TOKEN_KEY);
+      console.log("[API] Retrieved token from localStorage:", token ? "✓ Token exists" : "✗ No token");
+      return token;
     } else {
-      return await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
+      const token = await SecureStore.getItemAsync(BEARER_TOKEN_KEY);
+      console.log("[API] Retrieved token from SecureStore:", token ? "✓ Token exists" : "✗ No token");
+      return token;
     }
   } catch (error) {
     console.error("[API] Error retrieving bearer token:", error);
@@ -79,16 +83,25 @@ export const apiCall = async <T = any>(
       },
     };
 
-    console.log("[API] Fetch options:", fetchOptions);
-
-    // Always send the token if we have it (needed for cross-domain/iframe support)
-    const token = await getBearerToken();
-    if (token) {
-      fetchOptions.headers = {
-        ...fetchOptions.headers,
-        Authorization: `Bearer ${token}`,
-      };
+    // Try to get the token, but don't fail if it doesn't exist
+    // The backend now works WITHOUT authentication (uses anonymous user)
+    try {
+      const token = await getBearerToken();
+      if (token) {
+        console.log("[API] Adding Bearer token to request");
+        fetchOptions.headers = {
+          ...fetchOptions.headers,
+          Authorization: `Bearer ${token}`,
+        };
+      } else {
+        console.log("[API] No Bearer token found, proceeding without authentication (anonymous user)");
+      }
+    } catch (tokenError) {
+      console.warn("[API] Failed to retrieve Bearer token, proceeding without authentication:", tokenError);
+      // Continue without token - backend supports anonymous users
     }
+
+    console.log("[API] Fetch options:", fetchOptions);
 
     const response = await fetch(url, fetchOptions);
 
