@@ -24,6 +24,7 @@ import { colors, commonStyles } from '@/styles/commonStyles';
 import { AlertModal } from '@/components/AlertModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidget } from '@/contexts/WidgetContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { IconSymbol } from '@/components/IconSymbol';
 
 const LEVEL_THRESHOLDS = [
@@ -96,6 +97,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { updateWidgetData } = useWidget();
+  const { isPremium, canAddMoreHabits, maxFreeHabits } = useSubscription();
   const {
     habits,
     dashboard,
@@ -224,6 +226,27 @@ export default function HomeScreen() {
     }
   };
 
+  const handleAddHabitPress = () => {
+    console.log('[HomeScreen] User tapped Add Habit button');
+    
+    // Check if user can add more habits
+    if (!canAddMoreHabits(habits.length)) {
+      console.log('[HomeScreen] Free user reached habit limit, showing upgrade prompt');
+      showAlert(
+        'Upgrade to Premium',
+        `You can only track ${maxFreeHabits} habit in the free version. Upgrade to Premium to track unlimited habits!`,
+        'info'
+      );
+      // Navigate to upgrade screen after a short delay
+      setTimeout(() => {
+        router.push('/upgrade');
+      }, 1500);
+      return;
+    }
+    
+    setAddModalVisible(true);
+  };
+
   const handleCreateHabit = async (
     name: string,
     color: string,
@@ -232,6 +255,18 @@ export default function HomeScreen() {
     icon: string
   ) => {
     console.log('[HomeScreen] User creating new habit:', { name, color, goalCount, goalPeriodDays, icon });
+    
+    // Double-check habit limit before creating
+    if (!canAddMoreHabits(habits.length)) {
+      showAlert(
+        'Upgrade to Premium',
+        `You can only track ${maxFreeHabits} habit in the free version. Upgrade to Premium to track unlimited habits!`,
+        'error'
+      );
+      setAddModalVisible(false);
+      return;
+    }
+    
     try {
       await createHabit(name, color, goalCount, goalPeriodDays, icon);
       setAddModalVisible(false);
@@ -318,6 +353,9 @@ export default function HomeScreen() {
     });
   }
 
+  const freeVersionText = 'You are using the free version, that supports tracking only one Habit.';
+  const upgradeText = 'Upgrade to Premium';
+
   return (
     <View style={commonStyles.container}>
       <Stack.Screen 
@@ -353,6 +391,26 @@ export default function HomeScreen() {
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
+        {!isPremium && (
+          <View style={styles.freeVersionBanner}>
+            <View style={styles.freeVersionContent}>
+              <IconSymbol
+                ios_icon_name="info.circle.fill"
+                android_material_icon_name="info"
+                size={20}
+                color="#ff9500"
+              />
+              <Text style={styles.freeVersionText}>{freeVersionText}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.upgradeButton}
+              onPress={() => router.push('/upgrade')}
+            >
+              <Text style={styles.upgradeButtonText}>{upgradeText}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <HabitsOverview
           habits={habits}
           onAddCompletion={handleAddCompletion}
@@ -426,7 +484,7 @@ export default function HomeScreen() {
           );
         })}
 
-        <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddHabitPress}>
           <Text style={styles.addButtonText}>+ Add New Habit</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -541,6 +599,38 @@ const styles = StyleSheet.create({
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  freeVersionBanner: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  freeVersionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  freeVersionText: {
+    fontSize: 14,
+    color: '#856404',
+    marginLeft: 8,
+    flex: 1,
+    fontWeight: '500',
+  },
+  upgradeButton: {
+    backgroundColor: '#ff9500',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   pointsCard: {
     backgroundColor: colors.card,

@@ -1,3 +1,4 @@
+
 import "react-native-reanimated";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
@@ -14,8 +15,10 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { SuperwallProvider, SuperwallLoading, SuperwallLoaded } from "expo-superwall";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 // Note: Error logging is auto-initialized via index.ts import
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -118,23 +121,44 @@ export default function RootLayout() {
         <ThemeProvider
           value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
         >
-          <AuthProvider>
-            <WidgetProvider>
-              <GestureHandlerRootView>
-                <AuthGuard>
-                  <Stack>
-                    {/* Auth screens */}
-                    <Stack.Screen name="auth" options={{ headerShown: false }} />
-                    <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
-                    <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
-                    {/* Main app with tabs */}
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  </Stack>
-                </AuthGuard>
-                <SystemBars style={"auto"} />
-              </GestureHandlerRootView>
-            </WidgetProvider>
-          </AuthProvider>
+          <SuperwallProvider
+            apiKeys={{
+              ios: "pk_d1c0e6e8b8e0c5a5e5e5e5e5e5e5e5e5",
+              android: "pk_d1c0e6e8b8e0c5a5e5e5e5e5e5e5e5e5",
+            }}
+            onConfigurationError={(error) => {
+              console.error('[Superwall] Configuration error:', error);
+            }}
+          >
+            <SuperwallLoading>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+                <ActivityIndicator size="large" color="#0a84ff" />
+              </View>
+            </SuperwallLoading>
+            <SuperwallLoaded>
+              <AuthProvider>
+                <SubscriptionProvider>
+                  <WidgetProvider>
+                    <GestureHandlerRootView>
+                      <AuthGuard>
+                        <Stack>
+                          {/* Auth screens */}
+                          <Stack.Screen name="auth" options={{ headerShown: false }} />
+                          <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
+                          <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+                          {/* Main app with tabs */}
+                          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                          {/* Upgrade screen */}
+                          <Stack.Screen name="upgrade" options={{ presentation: 'modal' }} />
+                        </Stack>
+                      </AuthGuard>
+                      <SystemBars style={"auto"} />
+                    </GestureHandlerRootView>
+                  </WidgetProvider>
+                </SubscriptionProvider>
+              </AuthProvider>
+            </SuperwallLoaded>
+          </SuperwallProvider>
         </ThemeProvider>
     </>
   );
