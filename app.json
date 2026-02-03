@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Habit Tracker",
@@ -50,7 +51,21 @@
       [
         "@bacons/apple-targets",
         {
-          "appleTeamId": "YOUR_TEAM_ID"
+          "appleTeamId": "YOUR_TEAM_ID",
+          "targets": [
+            {
+              "type": "widget",
+              "name": "HabitWidget",
+              "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
+              "deploymentTarget": "14.0",
+              "frameworks": ["WidgetKit", "SwiftUI"],
+              "entitlements": {
+                "com.apple.security.application-groups": [
+                  "group.com.anonymous.Natively"
+                ]
+              }
+            }
+          ]
         }
       ]
     ],

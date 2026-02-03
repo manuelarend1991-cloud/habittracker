@@ -48,7 +48,14 @@ Open `app.json` and replace `YOUR_TEAM_ID` with your actual Apple Team ID:
   [
     "@bacons/apple-targets",
     {
-      "appleTeamId": "YOUR_ACTUAL_TEAM_ID_HERE"
+      "appleTeamId": "YOUR_ACTUAL_TEAM_ID_HERE",
+      "targets": [
+        {
+          "type": "widget",
+          "name": "HabitWidget",
+          ...
+        }
+      ]
     }
   ]
 ]
@@ -59,47 +66,60 @@ Open `app.json` and replace `YOUR_TEAM_ID` with your actual Apple Team ID:
 - Click "Membership" in the sidebar
 - Your Team ID is listed there (10 characters, like "ABC123XYZ9")
 
-### Step 2: Build the iOS App
+### Step 2: Clean and Prebuild the iOS Project
+
+**IMPORTANT:** You must run a clean prebuild to regenerate the Xcode project with the widget extension.
 
 ```bash
-# Prebuild the iOS project
+# Clean any existing iOS build
+rm -rf ios
+
+# Prebuild the iOS project with the widget extension
 npx expo prebuild -p ios --clean
 
 # Open in Xcode
 cd ios
-open Natively.xcworkspace
+open *.xcworkspace
 ```
 
 ### Step 3: Configure in Xcode
 
-1. In Xcode, select the main app target
-2. Go to "Signing & Capabilities"
-3. Make sure "App Groups" capability is enabled
-4. Verify `group.com.anonymous.Natively` is listed
+1. In Xcode, you should now see **TWO targets**:
+   - `Natively` (main app)
+   - `HabitWidget` (widget extension)
 
-5. Select the "HabitWidget" target
-6. Go to "Signing & Capabilities"
-7. Make sure "App Groups" capability is enabled
-8. Verify `group.com.anonymous.Natively` is listed
+2. Select the **main app target** (`Natively`)
+   - Go to "Signing & Capabilities"
+   - Make sure "App Groups" capability is enabled
+   - Verify `group.com.anonymous.Natively` is listed
+   - Set your Team and signing certificate
+
+3. Select the **HabitWidget target**
+   - Go to "Signing & Capabilities"
+   - Make sure "App Groups" capability is enabled
+   - Verify `group.com.anonymous.Natively` is listed
+   - Set your Team and signing certificate (same as main app)
 
 ### Step 4: Build and Run
 
-1. Select your device or simulator
-2. Click the "Play" button to build and run
-3. The app will install on your device
+1. Select your device or simulator (iOS 14.0 or later)
+2. Make sure the scheme is set to the main app (not the widget)
+3. Click the "Play" button to build and run
+4. The app will install on your device **with the widget extension**
 
 ### Step 5: Add Widget to Home Screen
 
 1. **Long press** on your iPhone home screen
 2. Tap the **"+"** button in the top-left corner
-3. Search for **"Habit Tracker"**
-4. Choose your preferred widget size:
+3. Search for **"Habit Tracker"** or scroll to find it
+4. You should now see the widget with preview
+5. Choose your preferred widget size:
    - Small (2x2)
    - Medium (4x2) ← Recommended
    - Large (4x4)
-5. Tap **"Add Widget"**
-6. Position the widget where you want it
-7. Tap **"Done"**
+6. Tap **"Add Widget"**
+7. Position the widget where you want it
+8. Tap **"Done"**
 
 ## 🎨 Widget Features
 
@@ -128,6 +148,41 @@ The widget automatically updates when:
 
 ## 🔧 Troubleshooting
 
+### Widget doesn't appear in the widget gallery
+
+**This is the most common issue!** The widget extension wasn't built properly.
+
+**Solution:**
+1. **Delete the `ios` folder completely:**
+   ```bash
+   rm -rf ios
+   ```
+
+2. **Make sure your `app.json` has the correct plugin configuration:**
+   - Open `app.json`
+   - Find the `@bacons/apple-targets` plugin
+   - Make sure it has BOTH `appleTeamId` AND `targets` array
+   - The `targets` array should contain the widget configuration
+
+3. **Run a clean prebuild:**
+   ```bash
+   npx expo prebuild -p ios --clean
+   ```
+
+4. **Open Xcode and verify TWO targets exist:**
+   ```bash
+   cd ios
+   open *.xcworkspace
+   ```
+   - In Xcode, click on the project name in the left sidebar
+   - You should see TWO targets: `Natively` and `HabitWidget`
+   - If you only see one target, the prebuild didn't work correctly
+
+5. **Build and run the app again**
+   - Select your device
+   - Click Play
+   - After installation, check the widget gallery
+
 ### Widget shows "No habits yet"
 
 **Solution:**
@@ -151,15 +206,23 @@ The widget automatically updates when:
 1. **"No matching provisioning profiles found"**
    - Make sure your Apple Team ID is correct in `app.json`
    - Go to Xcode → Preferences → Accounts → Download Manual Profiles
+   - Select both targets and set the same Team
 
 2. **"App Groups capability not found"**
    - Select the target → Signing & Capabilities
    - Click "+ Capability" → Add "App Groups"
    - Add `group.com.anonymous.Natively`
+   - Do this for BOTH the main app and widget targets
 
 3. **"Widget extension not found"**
+   - Delete the `ios` folder: `rm -rf ios`
    - Run `npx expo prebuild -p ios --clean` again
-   - Make sure `@bacons/apple-targets` is installed
+   - Make sure `@bacons/apple-targets` is installed: `npm install @bacons/apple-targets`
+
+4. **"Duplicate symbols" or linking errors**
+   - Clean build folder: Xcode → Product → Clean Build Folder (Cmd+Shift+K)
+   - Delete derived data: Xcode → Preferences → Locations → Derived Data → Delete
+   - Rebuild the project
 
 ### Widget shows old data
 
@@ -218,7 +281,7 @@ The widget automatically updates when:
 - `contexts/WidgetContext.tsx` - Added `updateWidgetData` function
 - `app/(tabs)/(home)/index.tsx` - Added widget data sync
 - `app/(tabs)/(home)/index.ios.tsx` - Added widget data sync
-- `app.json` - Added widget plugin and entitlements
+- `app.json` - Added widget plugin and entitlements with proper target configuration
 
 **Created:**
 - `targets/HabitWidget/widget.swift` - Widget implementation
@@ -250,7 +313,27 @@ Enjoy tracking your habits right from your home screen! 🚀
 
 If you encounter any issues:
 1. Check the Troubleshooting section above
-2. Make sure your Apple Team ID is correct
-3. Try cleaning and rebuilding in Xcode (Cmd+Shift+K, then Cmd+B)
-4. Remove and re-add the widget
-5. Check Xcode console for error messages
+2. Make sure your Apple Team ID is correct in `app.json`
+3. **Delete the `ios` folder and run `npx expo prebuild -p ios --clean`**
+4. Verify TWO targets exist in Xcode (main app + widget)
+5. Try cleaning and rebuilding in Xcode (Cmd+Shift+K, then Cmd+B)
+6. Remove and re-add the widget
+7. Check Xcode console for error messages
+
+## 🔑 Key Checklist
+
+Before building, make sure:
+- [ ] `app.json` has `@bacons/apple-targets` plugin with `targets` array
+- [ ] Your Apple Team ID is set in `app.json`
+- [ ] You've deleted the old `ios` folder
+- [ ] You've run `npx expo prebuild -p ios --clean`
+- [ ] Xcode shows TWO targets (main app + HabitWidget)
+- [ ] Both targets have App Groups capability enabled
+- [ ] Both targets use the same Team and signing certificate
+- [ ] You're building on iOS 14.0 or later
+
+If all checkboxes are checked and you still don't see the widget in the gallery, try:
+1. Uninstall the app completely from your device
+2. Clean build folder in Xcode
+3. Rebuild and reinstall
+4. Restart your device

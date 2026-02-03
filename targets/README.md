@@ -1,92 +1,137 @@
 
-# iOS Widget Setup
+# iOS Widget Extension
 
-This app includes an iOS Home Screen widget that displays the "All Habits Overview".
+This folder contains the iOS Home Screen widget extension for the Habit Tracker app.
 
-## Setup Instructions
+## 📁 Structure
 
-### 1. Install Dependencies
-
-Make sure you have `@bacons/apple-targets` installed:
-
-```bash
-npm install @bacons/apple-targets
+```
+targets/
+└── HabitWidget/
+    ├── widget.swift       # Widget implementation (SwiftUI)
+    ├── Info.plist         # Widget metadata and configuration
+    └── target.json        # Target configuration for @bacons/apple-targets
 ```
 
-### 2. Configure Your Apple Team ID
+## 🔧 How It Works
 
-In `app.json`, replace `YOUR_TEAM_ID` with your actual Apple Team ID:
+The widget extension is built using `@bacons/apple-targets`, which allows you to create native iOS extensions (like widgets) in an Expo project.
 
-```json
-"plugins": [
-  [
-    "@bacons/apple-targets",
-    {
-      "appleTeamId": "YOUR_TEAM_ID"
-    }
-  ]
-]
+### Configuration Flow
+
+1. **app.json** defines the widget target in the `@bacons/apple-targets` plugin:
+   ```json
+   {
+     "type": "widget",
+     "name": "HabitWidget",
+     "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
+     "deploymentTarget": "14.0",
+     "frameworks": ["WidgetKit", "SwiftUI"],
+     "entitlements": {
+       "com.apple.security.application-groups": [
+         "group.com.anonymous.Natively"
+       ]
+     }
+   }
+   ```
+
+2. **target.json** mirrors this configuration for the build system
+
+3. **widget.swift** contains the actual SwiftUI widget code
+
+4. **Info.plist** contains widget metadata (display name, bundle ID, etc.)
+
+### Data Sharing
+
+The widget shares data with the main app using **App Groups**:
+
+- **App Group ID:** `group.com.anonymous.Natively`
+- **Storage Key:** `widget_state`
+- **Data Format:** JSON string containing habits data
+
+The main app writes data to shared UserDefaults, and the widget reads it.
+
+## 🚀 Building
+
+When you run `npx expo prebuild -p ios`, the `@bacons/apple-targets` plugin:
+
+1. Creates the widget extension target in Xcode
+2. Copies `widget.swift` and `Info.plist` to the iOS project
+3. Configures App Groups entitlements
+4. Links WidgetKit and SwiftUI frameworks
+5. Sets up the bundle identifier and deployment target
+
+## 🔍 Troubleshooting
+
+### Widget doesn't appear in Xcode
+
+**Problem:** After running `npx expo prebuild`, you only see one target in Xcode (the main app).
+
+**Solution:**
+1. Check that `app.json` has the correct plugin configuration with `targets` array
+2. Delete the `ios` folder: `rm -rf ios`
+3. Run `npx expo prebuild -p ios --clean`
+4. Open Xcode and verify TWO targets exist
+
+### Widget not showing in widget gallery
+
+**Problem:** The app installs, but the widget doesn't appear when you try to add it to the home screen.
+
+**Solution:**
+1. Make sure you're running iOS 14.0 or later
+2. Verify the widget target was built and installed (check Xcode build logs)
+3. Uninstall the app completely and reinstall
+4. Restart your device
+
+### App Groups not working
+
+**Problem:** Widget shows "No habits yet" even though you have habits in the app.
+
+**Solution:**
+1. Verify both targets have the App Groups capability enabled in Xcode
+2. Make sure both use the same App Group ID: `group.com.anonymous.Natively`
+3. Check that the main app is writing data: look for `[WidgetContext]` logs
+4. Check that the widget is reading data: look for Swift console logs
+
+## 📝 Modifying the Widget
+
+To change the widget appearance or behavior:
+
+1. Edit `targets/HabitWidget/widget.swift`
+2. Run `npx expo prebuild -p ios --clean` to copy changes to Xcode
+3. Build and run in Xcode
+
+**Note:** You can also edit the Swift file directly in Xcode for faster iteration, but remember to copy your changes back to `targets/HabitWidget/widget.swift` so they persist across rebuilds.
+
+## 🎨 Widget Sizes
+
+The widget supports three sizes:
+
+- **Small (2x2):** Shows up to 3 habits with basic info
+- **Medium (4x2):** Shows up to 3 habits with full details and 7-day calendar
+- **Large (4x4):** Shows all habits with full details
+
+Sizes are defined in the `supportedFamilies` array in `widget.swift`:
+
+```swift
+.supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
 ```
 
-You can find your Team ID in:
-- Apple Developer Portal → Membership
-- Xcode → Preferences → Accounts → Your Apple ID → Team ID
+## 🔄 Update Mechanism
 
-### 3. Build the iOS App
+The widget updates in two ways:
 
-```bash
-# For development build
-npx expo prebuild -p ios
+1. **Manual updates:** When the app calls `ExtensionStorage.reloadWidget()`
+   - Triggered when habits are completed, added, edited, or deleted
+   - Happens immediately
 
-# Then open in Xcode
-cd ios
-open Natively.xcworkspace
-```
+2. **Automatic updates:** iOS refreshes the widget every 15 minutes
+   - Defined in the `getTimeline` function
+   - Ensures widget stays up-to-date even if app is closed
 
-### 4. Add Widget to Home Screen
+## 📚 Resources
 
-1. Long press on your iOS home screen
-2. Tap the "+" button in the top left
-3. Search for "Habit Tracker"
-4. Select the widget size (Small, Medium, or Large)
-5. Tap "Add Widget"
-
-## Widget Sizes
-
-- **Small**: Shows up to 3 habits with their current streak
-- **Medium**: Shows up to 3 habits with streaks and 7-day calendar
-- **Large**: Shows all habits with full details
-
-## How It Works
-
-The widget automatically updates when:
-- You complete a habit
-- You add a new habit
-- You update or delete a habit
-- Every 15 minutes (automatic refresh)
-
-The widget data is shared between the app and the widget extension using App Groups (`group.com.anonymous.Natively`).
-
-## Troubleshooting
-
-### Widget shows "No habits yet"
-- Make sure you've created at least one habit in the app
-- Try force-closing the app and reopening it
-- Remove and re-add the widget
-
-### Widget not updating
-- The widget refreshes every 15 minutes automatically
-- You can also force refresh by opening the app
-- Check that App Groups are properly configured in Xcode
-
-### Build errors
-- Make sure your Apple Team ID is correct in `app.json`
-- Ensure you have the proper provisioning profiles
-- Try cleaning the build folder in Xcode (Cmd+Shift+K)
-
-## Technical Details
-
-- Widget uses SwiftUI and WidgetKit
-- Data is stored in shared UserDefaults using App Groups
-- Widget context is managed by `contexts/WidgetContext.tsx`
-- Widget updates are triggered automatically when dashboard data changes
+- [WidgetKit Documentation](https://developer.apple.com/documentation/widgetkit)
+- [@bacons/apple-targets](https://github.com/EvanBacon/apple-targets)
+- [Expo Prebuild](https://docs.expo.dev/workflow/prebuild/)
+- [App Groups](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_application-groups)

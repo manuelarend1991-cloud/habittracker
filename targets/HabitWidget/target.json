@@ -2,8 +2,12 @@
 {
   "type": "widget",
   "name": "HabitWidget",
-  "bundleId": "com.anonymous.Natively.HabitWidget",
+  "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
   "deploymentTarget": "14.0",
   "frameworks": ["WidgetKit", "SwiftUI"],
-  "appGroups": ["group.com.anonymous.Natively"]
+  "entitlements": {
+    "com.apple.security.application-groups": [
+      "group.com.anonymous.Natively"
+    ]
+  }
 }
