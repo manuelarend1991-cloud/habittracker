@@ -1,6 +1,6 @@
 
 {
-  "type": "widget",
+  "type": "widget-extension",
   "name": "HabitWidget",
   "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
   "deploymentTarget": "14.0",

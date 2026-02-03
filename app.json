@@ -2,7 +2,7 @@
 {
   "expo": {
     "name": "Habit Tracker",
-    "slug": "Habit Tracker",
+    "slug": "habittracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -54,7 +54,7 @@
           "appleTeamId": "YOUR_TEAM_ID",
           "targets": [
             {
-              "type": "widget",
+              "type": "widget-extension",
               "name": "HabitWidget",
               "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
               "deploymentTarget": "14.0",
@@ -69,7 +69,7 @@
         }
       ]
     ],
-    "scheme": "Habit Tracker",
+    "scheme": "habittracker",
     "experiments": {
       "typedRoutes": true
     },

@@ -3,6 +3,37 @@
 
 This folder contains the iOS Home Screen widget extension for the Habit Tracker app.
 
+## 🚨 WIDGET NOT APPEARING? READ THIS FIRST!
+
+If the widget doesn't show up in the iOS widget gallery on your device, the most common issue is that the widget extension wasn't properly built into the app.
+
+**Quick Fix for Developers:**
+```bash
+# 1. Delete the iOS folder
+rm -rf ios
+
+# 2. Regenerate with widget extension
+npx expo prebuild -p ios --clean
+
+# 3. Open in Xcode
+cd ios
+open *.xcworkspace
+
+# 4. Verify TWO targets exist:
+#    - Natively (main app)
+#    - HabitWidget (widget extension)
+#
+# If you only see ONE target, the widget wasn't configured correctly.
+# Check that app.json has type: "widget-extension" (NOT "widget")
+
+# 5. Build and run on your device
+```
+
+**For TestFlight Users:**
+If you're testing via TestFlight and the widget doesn't appear, the developer needs to rebuild and upload a new version with the widget extension properly configured. The widget will NOT appear until a new build is uploaded.
+
+See `WIDGET_SETUP_GUIDE.md` in the root directory for complete instructions.
+
 ## 📁 Structure
 
 ```
@@ -22,7 +53,7 @@ The widget extension is built using `@bacons/apple-targets`, which allows you to
 1. **app.json** defines the widget target in the `@bacons/apple-targets` plugin:
    ```json
    {
-     "type": "widget",
+     "type": "widget-extension",
      "name": "HabitWidget",
      "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
      "deploymentTarget": "14.0",
@@ -69,9 +100,10 @@ When you run `npx expo prebuild -p ios`, the `@bacons/apple-targets` plugin:
 
 **Solution:**
 1. Check that `app.json` has the correct plugin configuration with `targets` array
-2. Delete the `ios` folder: `rm -rf ios`
-3. Run `npx expo prebuild -p ios --clean`
-4. Open Xcode and verify TWO targets exist
+2. **CRITICAL:** Verify the type is `"widget-extension"` (NOT `"widget"`)
+3. Delete the `ios` folder: `rm -rf ios`
+4. Run `npx expo prebuild -p ios --clean`
+5. Open Xcode and verify TWO targets exist
 
 ### Widget not showing in widget gallery
 

@@ -3,6 +3,59 @@
 
 Your Habit Tracker app now supports iOS Home Screen widgets! You can add the "All Habits Overview" directly to your iPhone home screen.
 
+## 🚨 CRITICAL: Widget Not Appearing? Read This First!
+
+If the widget doesn't appear in the widget gallery on your iPhone, you **MUST** follow these steps:
+
+### The Problem
+The widget extension needs to be properly built into your app. If you're using TestFlight or building from Xcode, the widget extension must be included in the build.
+
+### The Solution
+
+**For TestFlight Users:**
+The developer needs to rebuild the app with the widget extension properly configured. The widget will NOT appear until a new build is uploaded to TestFlight with the correct configuration.
+
+**For Developers Building Locally:**
+
+1. **Delete the existing iOS folder completely:**
+   ```bash
+   rm -rf ios
+   ```
+
+2. **Run a clean prebuild to regenerate the Xcode project:**
+   ```bash
+   npx expo prebuild -p ios --clean
+   ```
+
+3. **Open the project in Xcode:**
+   ```bash
+   cd ios
+   open *.xcworkspace
+   ```
+
+4. **Verify TWO targets exist in Xcode:**
+   - Click on the project name in the left sidebar
+   - You should see TWO targets:
+     - `Natively` (main app)
+     - `HabitWidget` (widget extension)
+   - If you only see ONE target, the prebuild didn't work correctly. Go back to step 1.
+
+5. **Configure signing for BOTH targets:**
+   - Select `Natively` target → Signing & Capabilities → Set your Team
+   - Select `HabitWidget` target → Signing & Capabilities → Set your Team (same as main app)
+   - Both targets should have "App Groups" capability with `group.com.anonymous.Natively`
+
+6. **Build and run on your device:**
+   - Select your device (not simulator for best results)
+   - Click the Play button
+   - Wait for the app to install
+
+7. **Check the widget gallery:**
+   - Long press on your home screen
+   - Tap the "+" button
+   - Search for "Habit Tracker"
+   - The widget should now appear!
+
 ## ✅ What's Been Implemented
 
 1. **Widget Context** (`contexts/WidgetContext.tsx`)
@@ -150,19 +203,44 @@ The widget automatically updates when:
 
 ### Widget doesn't appear in the widget gallery
 
-**This is the most common issue!** The widget extension wasn't built properly.
+**This is the #1 most common issue!** The widget extension wasn't built properly.
 
-**Solution:**
+**Root Cause:** The widget extension is a separate iOS target that must be compiled and bundled with your app. If it's not included in the build, iOS won't show it in the widget gallery.
+
+**How to verify the widget is included:**
+1. Open Xcode
+2. Click on the project name in the left sidebar
+3. Look at the "TARGETS" section
+4. You should see TWO targets:
+   - `Natively` (main app)
+   - `HabitWidget` (widget extension)
+5. If you only see ONE target, the widget wasn't built
+
+**Solution for Developers:**
 1. **Delete the `ios` folder completely:**
    ```bash
    rm -rf ios
    ```
 
-2. **Make sure your `app.json` has the correct plugin configuration:**
+2. **Verify your `app.json` configuration:**
    - Open `app.json`
    - Find the `@bacons/apple-targets` plugin
-   - Make sure it has BOTH `appleTeamId` AND `targets` array
-   - The `targets` array should contain the widget configuration
+   - Make sure the widget type is `"widget-extension"` (NOT `"widget"`)
+   - The configuration should look like this:
+   ```json
+   {
+     "type": "widget-extension",
+     "name": "HabitWidget",
+     "bundleIdentifier": "com.anonymous.Natively.HabitWidget",
+     "deploymentTarget": "14.0",
+     "frameworks": ["WidgetKit", "SwiftUI"],
+     "entitlements": {
+       "com.apple.security.application-groups": [
+         "group.com.anonymous.Natively"
+       ]
+     }
+   }
+   ```
 
 3. **Run a clean prebuild:**
    ```bash
@@ -176,12 +254,23 @@ The widget automatically updates when:
    ```
    - In Xcode, click on the project name in the left sidebar
    - You should see TWO targets: `Natively` and `HabitWidget`
-   - If you only see one target, the prebuild didn't work correctly
+   - If you only see one target, check the `app.json` configuration and try again
 
-5. **Build and run the app again**
-   - Select your device
+5. **Configure signing for BOTH targets:**
+   - Select `Natively` → Signing & Capabilities → Set Team
+   - Select `HabitWidget` → Signing & Capabilities → Set Team (same as main app)
+   - Both should have "App Groups" capability enabled
+
+6. **Build and run the app again:**
+   - Select your device (physical device recommended)
    - Click Play
    - After installation, check the widget gallery
+
+**Solution for TestFlight Users:**
+If you're testing via TestFlight and the widget doesn't appear, the developer needs to:
+1. Follow the steps above to rebuild the app with the widget extension
+2. Upload a new build to TestFlight
+3. You'll need to install the new build to see the widget
 
 ### Widget shows "No habits yet"
 
@@ -324,7 +413,8 @@ If you encounter any issues:
 
 Before building, make sure:
 - [ ] `app.json` has `@bacons/apple-targets` plugin with `targets` array
-- [ ] Your Apple Team ID is set in `app.json`
+- [ ] Widget type is `"widget-extension"` (NOT `"widget"`)
+- [ ] Your Apple Team ID is set in `app.json` (for local builds)
 - [ ] You've deleted the old `ios` folder
 - [ ] You've run `npx expo prebuild -p ios --clean`
 - [ ] Xcode shows TWO targets (main app + HabitWidget)
@@ -334,6 +424,88 @@ Before building, make sure:
 
 If all checkboxes are checked and you still don't see the widget in the gallery, try:
 1. Uninstall the app completely from your device
-2. Clean build folder in Xcode
-3. Rebuild and reinstall
-4. Restart your device
+2. Clean build folder in Xcode (Cmd+Shift+K)
+3. Delete derived data (Xcode → Preferences → Locations → Derived Data → Delete)
+4. Rebuild and reinstall
+5. Restart your device
+
+## 📱 For TestFlight Users
+
+If you're testing the app via TestFlight and the widget doesn't appear:
+
+### Why This Happens
+The widget extension is a separate component that must be included when the app is built and uploaded to TestFlight. If the developer didn't properly configure the widget extension before uploading to TestFlight, it won't be available.
+
+### What You Can Do
+1. **Check if the widget is supposed to be in this build:**
+   - Ask the developer if the widget extension was included in this TestFlight build
+   - The widget was added in version X.X.X (check the version number)
+
+2. **Try these steps:**
+   - Make sure you're on iOS 14.0 or later
+   - Restart your iPhone
+   - Reinstall the app from TestFlight
+   - Long press home screen → Tap "+" → Search for "Habit Tracker"
+
+3. **If the widget still doesn't appear:**
+   - The widget extension was not included in this TestFlight build
+   - The developer needs to:
+     - Follow the setup instructions above
+     - Rebuild the app with the widget extension properly configured
+     - Upload a new build to TestFlight
+   - You'll need to install the new build to see the widget
+
+### For Developers Uploading to TestFlight
+
+**CRITICAL STEPS before uploading to TestFlight:**
+
+1. **Verify the widget extension is included:**
+   ```bash
+   # Delete old build
+   rm -rf ios
+   
+   # Regenerate with widget extension
+   npx expo prebuild -p ios --clean
+   
+   # Open in Xcode
+   cd ios
+   open *.xcworkspace
+   ```
+
+2. **In Xcode, verify TWO targets exist:**
+   - `Natively` (main app)
+   - `HabitWidget` (widget extension)
+   - If you only see one target, STOP and fix the configuration
+
+3. **Configure signing for BOTH targets:**
+   - Both targets must use the same Team
+   - Both targets must have App Groups capability
+   - Both targets must be included in the archive
+
+4. **Archive and upload:**
+   - Product → Archive
+   - In the Organizer, verify the archive includes BOTH targets
+   - Upload to TestFlight
+   - Wait for processing to complete
+
+5. **Test the build:**
+   - Install from TestFlight on a test device
+   - Check the widget gallery
+   - If the widget appears, you're good to go!
+   - If not, the widget extension wasn't included - go back to step 1
+
+### Common TestFlight Issues
+
+**"Widget appears in Xcode builds but not TestFlight builds"**
+- The widget extension wasn't included in the archive
+- Solution: Make sure both targets are selected when archiving
+- In Xcode: Product → Scheme → Edit Scheme → Archive → Make sure HabitWidget is checked
+
+**"Widget worked in previous build but not in new build"**
+- The `ios` folder was modified manually instead of regenerated
+- Solution: Always delete `ios` folder and run `npx expo prebuild -p ios --clean` before building
+
+**"TestFlight says 'Missing Compliance' for widget"**
+- This is normal if your app uses encryption
+- Set `ITSAppUsesNonExemptEncryption` to `false` in `app.json` (already done)
+- Or provide export compliance documentation
